@@ -251,17 +251,16 @@ padrão a partir de agora, conforme a Constitution (Princípio V).
   na tarefa — possa poluir uma tarefa alheia com comentários/anexos/checklist, mantendo
   a visibilidade ampla (necessária para coordenação do time) separada da autoridade de
   colaborar ativamente nela.
-- **Nota de consistência com a spec (sinalizada, não corrigida aqui)**: a versão atual
-  de `spec.md` (Edge Cases e FR-027/FR-035/FR-037) só exige que o usuário seja **membro
-  do workspace** para comentar/anexar/criar checklist, sem mencionar a necessidade de
-  ser participante explícito. Esta decisão técnica adota a leitura mais restritiva
-  (participante explícito ou responsável), por instrução direta de refinamento do
-  produto. Isso é uma **restrição de comportamento em relação à redação literal atual da
-  spec**, não apenas um detalhe de implementação — recomienda-se uma pequena atualização
-  de `spec.md` (via `/speckit.specify` ou `/speckit.clarify`) para alinhar o texto de
-  FR-027/FR-035/FR-037 e os Edge Cases a esta regra antes da fase de `/speckit.tasks`,
-  ou aceitar formalmente que o plano é mais restritivo que a spec redigida. Ver resumo
-  final para a recomendação explícita.
+- **Nota de consistência com a spec (resolvida)**: uma revisão anterior deste documento
+  sinalizava que `spec.md` (Edge Cases e FR-042) só exigia que o usuário fosse **membro
+  do workspace** para colaborar (comentar/anexar/criar checklist), sem mencionar a
+  necessidade de ser participante explícito — divergindo da leitura mais restritiva
+  adotada aqui (participante explícito ou responsável). `spec.md` foi atualizado
+  (FR-042 reescrito para distinguir explicitamente visualização — aberta a qualquer
+  membro do workspace, FR-022 — de colaboração — restrita a responsável/participante
+  explícito; novo edge case e novos Acceptance Scenarios em US6/US9/US10 cobrindo o
+  caso "membro sem participação tenta colaborar → negado"). Não há mais divergência
+  entre `spec.md` e esta decisão técnica.
 - **Alternatives considered**: manter "qualquer membro do workspace pode colaborar"
   (rejeitado — é a leitura antiga, agora explicitamente substituída pela instrução de
   refinamento do produto); tornar Owner/Admin participantes implícitos automaticamente

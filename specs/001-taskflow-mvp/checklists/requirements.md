@@ -50,3 +50,12 @@
   and technology-agnostic.
 - Validation passed on this final iteration — no outstanding inconsistencies found; spec
   is ready for `/speckit.plan`.
+- Revision 4 (2026-07-13): resolved the gap flagged by `research.md` #8 between spec
+  wording and the already-implemented plan/data-model/contracts rule for task
+  collaboration. FR-042 rewritten to explicitly distinguish visualização (any workspace
+  member, per FR-022) from colaboração (comentar/checklist/anexar — restricted to
+  assignee or explicit `TaskMember`, per FR-027/FR-035/FR-037 and User Story 5). Added
+  one new Edge Case and one new Acceptance Scenario each to US6/US9/US10 covering "a
+  workspace member who is not assignee/participant tries to collaborate → rejected,
+  view still allowed." No FR renumbered, no scope change — spec.md now matches
+  plan.md/data-model.md/contracts/collaboration.md exactly.
