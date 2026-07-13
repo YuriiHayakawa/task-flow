@@ -195,6 +195,10 @@ de comentários da tarefa, associado ao autor e à tarefa.
    conteúdo vazio, **Then** o sistema rejeita a ação e nenhum comentário é criado.
 3. **Given** uma tarefa com comentários existentes, **When** um participante consulta a
    tarefa, **Then** todos os comentários são listados em ordem cronológica.
+4. **Given** um membro do workspace da tarefa que não é responsável nem participante
+   explícito dela, **When** ele tenta adicionar um comentário, **Then** a ação é
+   rejeitada, ainda que ele continue conseguindo visualizar a tarefa e seus comentários
+   existentes.
 
 ---
 
@@ -271,6 +275,10 @@ itens de checklist, marcar um como concluído e confirmar que o progresso é ref
    **Then** o item é salvo vinculado a essa tarefa.
 2. **Given** um item de checklist existente, **When** o participante o marca como
    concluído, **Then** o item passa a ser exibido como concluído.
+3. **Given** um membro do workspace da tarefa que não é responsável nem participante
+   explícito dela, **When** ele tenta adicionar ou marcar um item de checklist, **Then**
+   a ação é rejeitada, ainda que ele continue conseguindo visualizar o checklist da
+   tarefa.
 
 ---
 
@@ -290,6 +298,9 @@ anexo e confirmar que ele aparece vinculado à tarefa e ao usuário que o enviou
    anexo é salvo vinculado à tarefa e ao usuário que o enviou.
 2. **Given** uma tarefa com anexos, **When** um participante consulta a tarefa, **Then**
    todos os anexos vinculados são listados.
+3. **Given** um membro do workspace da tarefa que não é responsável nem participante
+   explícito dela, **When** ele tenta anexar um arquivo, **Then** a ação é rejeitada,
+   ainda que ele continue conseguindo visualizar e baixar os anexos já existentes.
 
 ---
 
@@ -383,6 +394,13 @@ o System Admin continua sem acesso a workspaces dos quais não é membro comum.
 - O que acontece quando um usuário tenta comentar, anexar arquivo, criar checklist ou ser
   adicionado como participante em uma tarefa de um workspace do qual não é membro? → A
   ação MUST ser negada.
+- O que acontece quando um membro do workspace (que não é responsável nem participante
+  explícito da tarefa) tenta comentar, anexar arquivo ou criar/marcar item de checklist
+  nessa tarefa? → A ação MUST ser negada — colaborar (comentar, anexar, criar/marcar
+  checklist) exige ser o responsável ou um participante explícito da tarefa (ver FR-042,
+  User Story 5); visualizar a tarefa e seus comentários/checklist/anexos/histórico
+  permanece permitido a qualquer membro do workspace (FR-022, FR-042), independentemente
+  de participação.
 - O que acontece quando o único Owner de um workspace tenta sair ou ser removido sem
   transferir a titularidade? → A ação MUST ser bloqueada até que a titularidade seja
   transferida a outro membro.
@@ -490,9 +508,14 @@ o System Admin continua sem acesso a workspaces dos quais não é membro comum.
 - **FR-041**: O sistema MUST registrar automaticamente um histórico quando status,
   prioridade, prazo ou responsável de uma tarefa forem alterados, contendo o campo
   alterado, valor anterior, novo valor, autor e data/hora.
-- **FR-042**: O sistema MUST permitir que qualquer participante de uma tarefa (responsável,
-  demais participantes, ou o próprio criador no caso de tarefa pessoal) consulte seus
-  comentários, checklist, anexos e histórico.
+- **FR-042**: O sistema MUST permitir que qualquer membro do workspace da tarefa (ou, no
+  caso de tarefa pessoal, o próprio criador) consulte seus comentários, checklist, anexos
+  e histórico — consultar é uma forma de visualização e segue a mesma regra ampla de
+  FR-022, não a de colaboração. Adicionar um novo comentário, item de checklist ou anexo,
+  por sua vez, MUST ficar restrito ao responsável pela tarefa e aos participantes
+  explícitos dela (ver FR-027, FR-035, FR-037 e User Story 5) — um membro do workspace que
+  não seja responsável nem participante MUST conseguir visualizar esses dados, mas MUST
+  NOT conseguir adicionar novos.
 - **FR-043**: Um System Admin MUST poder listar usuários e ativar/desativar contas de
   usuário, independentemente de participação em workspaces específicos.
 - **FR-044**: Ser System Admin MUST NOT conceder, por si só, nenhum acesso a workspaces,
