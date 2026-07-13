@@ -1,6 +1,6 @@
-# 🚀 WorkFlow App
+# 🚀 TaskFlow App
 
-O **WorkFlow App** é um projeto Full Stack desenvolvido para estudar e aplicar conceitos modernos de desenvolvimento backend e frontend, simulando uma aplicação utilizada no ambiente corporativo para gerenciamento de atividades, prazos e produtividade.
+O **TaskFlow App** é um projeto Full Stack desenvolvido para estudar e aplicar conceitos modernos de desenvolvimento backend e frontend, simulando uma aplicação utilizada no ambiente corporativo para gerenciamento de atividades, prazos e produtividade.
 
 O projeto será desenvolvido de forma incremental, implementando funcionalidades encontradas em sistemas profissionais e seguindo boas práticas de arquitetura de software.
 
