@@ -9,8 +9,10 @@ documento é o roteiro de validação a ser seguido durante e após a implementa
 
 ## Pré-requisitos
 
-- Python 3.13 (mesma versão do `.venv` já presente na raiz do repositório).
-- Node.js LTS (18+) e npm, para o frontend Vite/React.
+- Python 3.13 (versão fixada em `backend/Dockerfile`; o `.venv` local em `backend/.venv`
+  usa a versão disponível na máquina de desenvolvimento — ver nota de ambiente no
+  resumo da Fase 1 caso divirja de 3.13).
+- Node.js 24+ (versão padronizada em `frontend/.nvmrc`) e npm, para o frontend Vite/React.
 - PostgreSQL 15+ acessível localmente (nativo ou via Docker).
 - Docker + Docker Compose (opcional, mas recomendado — ver seção "Via Docker Compose").
 

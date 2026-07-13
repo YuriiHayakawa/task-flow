@@ -92,34 +92,34 @@ pelo CLAUDE.md (seção 8 — Commits).
 
 ### Backend
 
-- [ ] T001 Criar a árvore de diretórios completa de `backend/app/` (`core/`, `database/`, `models/`,
+- [X] T001 Criar a árvore de diretórios completa de `backend/app/` (`core/`, `database/`, `models/`,
   `schemas/`, `repositories/`, `services/`, `routes/`, `enums/`, `dependencies/`, `utils/`) e
   `backend/tests/` (`unit/`, `integration/`), com `__init__.py` em cada pacote, conforme a estrutura de
   `plan.md`
-- [ ] T002 [P] Inicializar o projeto Python do backend em `backend/pyproject.toml` (ou
+- [X] T002 [P] Inicializar o projeto Python do backend em `backend/pyproject.toml` (ou
   `backend/requirements.txt`) com FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2, Pydantic Settings,
   PyJWT, bcrypt, `psycopg[binary]`, pytest, pytest-cov, httpx (`research.md` #3, #4, #5)
-- [ ] T003 [P] Criar `backend/.env.example` com `DATABASE_URL`, `JWT_SECRET_KEY`,
+- [X] T003 [P] Criar `backend/.env.example` com `DATABASE_URL`, `JWT_SECRET_KEY`,
   `JWT_EXPIRE_MINUTES`, `APP_TIMEZONE` (default `America/Sao_Paulo`), `ATTACHMENTS_DIR`,
   `ATTACHMENTS_MAX_SIZE_BYTES`, `ATTACHMENTS_ALLOWED_CONTENT_TYPES`,
   `DUE_SOON_CHECK_INTERVAL_SECONDS` (default `60`), `DUE_SOON_WINDOW_HOURS` (default `24`),
   `DUE_SOON_LOCK_KEY`
-- [ ] T004 Inicializar `backend/alembic.ini` e o ambiente `backend/alembic/env.py`, conectado à
+- [X] T004 Inicializar `backend/alembic.ini` e o ambiente `backend/alembic/env.py`, conectado à
   `Base.metadata` do SQLAlchemy e a `DATABASE_URL` de `core/config.py` (depende de T001, T002)
 
 ### Frontend
 
-- [ ] T005 [P] Criar a árvore de diretórios completa de `frontend/src/` (`routes/`, `pages/`,
+- [X] T005 [P] Criar a árvore de diretórios completa de `frontend/src/` (`routes/`, `pages/`,
   `components/{common,forms,layout,feedback}/`, `layouts/`, `services/`, `hooks/`, `contexts/`,
   `types/`, `utils/`, `assets/`, `styles/`) e `frontend/tests/`, conforme a estrutura de `plan.md`
-- [ ] T006 [P] Inicializar o projeto Vite + React 19 + TypeScript em `frontend/package.json`,
+- [X] T006 [P] Inicializar o projeto Vite + React 19 + TypeScript em `frontend/package.json`,
   `frontend/vite.config.ts`, `frontend/tsconfig.json`, com `react-router-dom`, `axios`, `vitest`,
   `@testing-library/react` (`research.md` #13, #16)
-- [ ] T007 [P] Criar `frontend/.env.example` com `VITE_API_BASE_URL`
+- [X] T007 [P] Criar `frontend/.env.example` com `VITE_API_BASE_URL`
 
 ### Infraestrutura
 
-- [ ] T008 [P] Criar `backend/Dockerfile`, `frontend/Dockerfile` e `docker-compose.yml` (serviços
+- [X] T008 [P] Criar `backend/Dockerfile`, `frontend/Dockerfile` e `docker-compose.yml` (serviços
   `backend`, `frontend`, `db`) na raiz do repositório (`research.md` #18)
 
 **Checkpoint**: estrutura de diretórios e ferramentas de build prontas; nenhuma linha de lógica de
