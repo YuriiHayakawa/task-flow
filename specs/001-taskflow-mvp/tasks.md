@@ -139,78 +139,84 @@ depende de `Workspace`/`Project` já existirem (FKs), por isso **todas** as migr
 
 ### Core
 
-- [ ] T009 [P] Criar `backend/app/core/config.py` (Pydantic Settings — todas as variáveis de T003)
+- [X] T009 [P] Criar `backend/app/core/config.py` (Pydantic Settings — todas as variáveis de T003)
   (Constitution XII)
-- [ ] T010 [P] Criar `backend/app/core/logging.py` (logging estruturado, sem dados sensíveis —
+- [X] T010 [P] Criar `backend/app/core/logging.py` (logging estruturado, sem dados sensíveis —
   Constitution XI)
-- [ ] T011 [P] Criar `backend/app/core/exceptions.py` (envelope de erro padrão, exceções de domínio,
+- [X] T011 [P] Criar `backend/app/core/exceptions.py` (envelope de erro padrão, exceções de domínio,
   exception handlers do FastAPI — incl. `ACCOUNT_DISABLED`, `INVALID_CREDENTIALS`,
   `VALIDATION_ERROR`, `NOT_AUTHENTICATED` — `contracts/_conventions.md`, Constitution X)
-- [ ] T012 [P] Criar `backend/app/core/security.py` (hash/verificação de senha com `bcrypt`,
+- [X] T012 [P] Criar `backend/app/core/security.py` (hash/verificação de senha com `bcrypt`,
   encode/decode de JWT com `PyJWT` — `research.md` #3, #4)
 
 ### Database
 
-- [ ] T013 Criar `backend/app/database/base.py` (Base declarativa do SQLAlchemy)
-- [ ] T014 Criar `backend/app/database/connection.py` (engine SQLAlchemy a partir de
+- [X] T013 Criar `backend/app/database/base.py` (Base declarativa do SQLAlchemy)
+- [X] T014 Criar `backend/app/database/connection.py` (engine SQLAlchemy a partir de
   `config.DATABASE_URL`) (depende de T009, T013)
-- [ ] T015 Criar `backend/app/database/session.py` (`sessionmaker`, dependency `get_db`) (depende de
+- [X] T015 Criar `backend/app/database/session.py` (`sessionmaker`, dependency `get_db`) (depende de
   T014)
 
 ### Enums
 
-- [ ] T016 [P] Criar os enums controlados em `backend/app/enums/`: `workspace_role.py` (`OWNER`,
+- [X] T016 [P] Criar os enums controlados em `backend/app/enums/`: `workspace_role.py` (`OWNER`,
   `ADMIN`, `MEMBER`), `task_status.py` (`PENDING`, `IN_PROGRESS`, `DONE`), `task_priority.py` (`LOW`,
   `MEDIUM`, `HIGH`, `URGENT`), `notification_type.py` (`DUE_SOON`, `NEW_COMMENT`, `TASK_CHANGED`)
 
 ### Models
 
-- [ ] T017 [P] Criar model `User` em `backend/app/models/user.py` (`id`, `name`, `email`,
+- [X] T017 [P] Criar model `User` em `backend/app/models/user.py` (`id`, `name`, `email`,
   `password_hash`, `is_active`, `is_system_admin`, timestamps `TIMESTAMPTZ`) (depende de T013)
-- [ ] T018 [P] Criar model `Workspace` em `backend/app/models/workspace.py` (depende de T013)
-- [ ] T019 [P] Criar model `WorkspaceMember` em `backend/app/models/workspace_member.py`
+- [X] T018 [P] Criar model `Workspace` em `backend/app/models/workspace.py` (depende de T013)
+- [X] T019 [P] Criar model `WorkspaceMember` em `backend/app/models/workspace_member.py`
   (`UNIQUE(workspace_id, user_id)`) (depende de T016, T017, T018)
-- [ ] T020 [P] Criar model `Project` em `backend/app/models/project.py` (depende de T018)
-- [ ] T021 [P] Criar model `Task` em `backend/app/models/task.py` (incl. `due_soon_notified_for`,
+- [X] T020 [P] Criar model `Project` em `backend/app/models/project.py` (depende de T018)
+- [X] T021 [P] Criar model `Task` em `backend/app/models/task.py` (incl. `due_soon_notified_for`,
   `completed_at`, FKs `ON DELETE RESTRICT`/`CASCADE`/`SET NULL` per `data-model.md`) (depende de
   T016, T017, T018, T020)
-- [ ] T022 [P] Criar model `TaskMember` em `backend/app/models/task_member.py`
+- [X] T022 [P] Criar model `TaskMember` em `backend/app/models/task_member.py`
   (`UNIQUE(task_id, user_id)`) (depende de T017, T021)
-- [ ] T023 [P] Criar model `Comment` em `backend/app/models/comment.py` (`CHECK` conteúdo não vazio)
+- [X] T023 [P] Criar model `Comment` em `backend/app/models/comment.py` (`CHECK` conteúdo não vazio)
   (depende de T017, T021)
-- [ ] T024 [P] Criar model `ChecklistItem` em `backend/app/models/checklist_item.py` (depende de
+- [X] T024 [P] Criar model `ChecklistItem` em `backend/app/models/checklist_item.py` (depende de
   T021)
-- [ ] T025 [P] Criar model `Attachment` em `backend/app/models/attachment.py` (depende de T017,
+- [X] T025 [P] Criar model `Attachment` em `backend/app/models/attachment.py` (depende de T017,
   T021)
-- [ ] T026 [P] Criar model `TaskHistoryEntry` em `backend/app/models/task_history_entry.py`
+- [X] T026 [P] Criar model `TaskHistoryEntry` em `backend/app/models/task_history_entry.py`
   (depende de T017, T021)
-- [ ] T027 [P] Criar model `Notification` em `backend/app/models/notification.py` (depende de T016,
+- [X] T027 [P] Criar model `Notification` em `backend/app/models/notification.py` (depende de T016,
   T017, T021)
 
 ### Migrações
 
-- [ ] T028 Gerar migração Alembic `0001_foundation_users` em `backend/alembic/versions/` (tabela
+- [X] T028 Gerar migração Alembic `0001_foundation_users` em `backend/alembic/versions/` (tabela
   `users` + índice único funcional `ux_users_email_lower` sobre `lower(email)` — `research.md` #10)
   (depende de T004, T017)
-- [ ] T029 Gerar migração Alembic `0002_workspaces_and_projects` em `backend/alembic/versions/`
+- [X] T029 Gerar migração Alembic `0002_workspaces_and_projects` em `backend/alembic/versions/`
   (`workspaces`, `workspace_members` incl. índice único parcial `ux_workspace_members_one_owner`,
   `projects`) (depende de T028, T018, T019, T020)
-- [ ] T030 Gerar migração Alembic `0003_tasks_and_collaboration` em `backend/alembic/versions/`
+- [X] T030 Gerar migração Alembic `0003_tasks_and_collaboration` em `backend/alembic/versions/`
   (`tasks`, `task_members`, `comments`, `checklist_items`, `attachments`) (depende de T029, T021-T025)
-- [ ] T031 Gerar migração Alembic `0004_history_and_notifications` em `backend/alembic/versions/`
+- [X] T031 Gerar migração Alembic `0004_history_and_notifications` em `backend/alembic/versions/`
   (`task_history_entries`, `notifications`) (depende de T030, T026, T027)
-- [ ] T032 Aplicar todas as migrações no banco local (`alembic upgrade head`) e validar o schema
-  resultante contra `data-model.md` (depende de T028-T031)
+- [X] T032 ⚠️ **Validado em modo offline** (`alembic upgrade head --sql` e `alembic downgrade
+  base --sql`, sem PostgreSQL local disponível nesta máquina — ver limitações do ambiente no resumo
+  da Fase 2). DDL gerado conferido linha a linha contra `data-model.md` (tabelas, FKs, índices,
+  CHECKs). **Aplicação real (`alembic upgrade head` contra um banco vivo) continua pendente** e
+  MUST ser executada assim que houver PostgreSQL local ou via Docker (depende de T028-T031)
+- [ ] T032b _(task de acompanhamento, não prevista originalmente)_ Executar `alembic upgrade head`
+  contra um PostgreSQL real (local ou via `docker compose up db`) e validar o schema resultante
+  contra `data-model.md`, confirmando que a saída bate com o DDL revisado em T032
 
 ### Dependencies & Entrypoint
 
-- [ ] T033 Criar `backend/app/dependencies/db.py` (dependency `get_db` reexportada para uso nas
+- [X] T033 Criar `backend/app/dependencies/db.py` (dependency `get_db` reexportada para uso nas
   rotas) (depende de T015)
-- [ ] T034 Criar `backend/app/dependencies/auth.py` (`get_current_user`: decodifica JWT, carrega
+- [X] T034 Criar `backend/app/dependencies/auth.py` (`get_current_user`: decodifica JWT, carrega
   `User`, valida `is_active` a cada requisição, levanta `ACCOUNT_DISABLED` se desativado —
   `research.md` #1) e `backend/app/dependencies/admin.py` (`require_system_admin`) (depende de T012,
   T017, T033)
-- [ ] T035 Criar esqueleto de `backend/app/core/scheduler.py` (loop `asyncio`, início/cancelamento
+- [X] T035 Criar esqueleto de `backend/app/core/scheduler.py` (loop `asyncio`, início/cancelamento
   via `lifespan`, função de execução placeholder — lógica real de `DUE_SOON` só na Fase 13/US11 —
   `plan.md` "Ordem de Implementação") e `backend/app/main.py` (app FastAPI, prefixo `/api/v1`,
   `lifespan` iniciando/encerrando o scheduler, registro dos exception handlers de T011) (depende de
@@ -218,9 +224,10 @@ depende de `Workspace`/`Project` já existirem (FKs), por isso **todas** as migr
 
 ### Test Fixtures
 
-- [ ] T036 [P] Criar `backend/tests/conftest.py` (fixtures: banco de teste migrado via Alembic,
+- [X] T036 [P] Criar `backend/tests/conftest.py` (fixtures: banco de teste migrado via Alembic,
   `TestClient`, factories de `User`/`Workspace`/`Task`, helper para obter token JWT de teste)
-  (depende de T032, T035)
+  (depende de T032, T035) — validado estruturalmente (sintaxe, imports, coleta via `pytest
+  --collect-only`); execução ponta a ponta das fixtures de banco depende de T032b
 
 **Checkpoint**: schema completo, infraestrutura central pronta — User Stories podem começar.
 
