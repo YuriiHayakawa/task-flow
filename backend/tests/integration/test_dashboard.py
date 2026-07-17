@@ -2,11 +2,13 @@
 (APP_TIMEZONE), estado vazio, isolamento entre usuários.
 
 Cobre: FR-047 a FR-050, FR-011, research.md #7/#9, spec.md US2 (cenários 1-5;
-o cenário 6 — combinar com tarefas de workspace — chega na US3/US4, T065)."""
+o cenário 6 — combinar com tarefas de workspace — ativado pela T065/US3,
+testado ao final deste arquivo)."""
 
 from datetime import timedelta
 
 from app.enums.task_status import TaskStatus
+from app.enums.workspace_role import WorkspaceRole
 from app.utils.timezone import today_in_app_timezone
 
 
@@ -105,3 +107,37 @@ def test_dashboard_requires_authentication(client):
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "NOT_AUTHENTICATED"
+
+
+def test_dashboard_combines_personal_and_workspace_tasks(
+    client, make_user, make_workspace, add_workspace_member, make_task, auth_headers
+):
+    """T065/US3 — Acceptance Scenario 6 da US2: tarefas de workspaces dos
+    quais o usuário participa são combinadas com suas tarefas pessoais no
+    mesmo resumo."""
+    user = make_user()
+    owner = make_user(email="ws-owner-dashboard@example.com")
+    workspace = make_workspace(owner=owner, name="Workspace do dashboard")
+    add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
+
+    make_task(creator=user, title="Pessoal", status=TaskStatus.PENDING)
+    make_task(creator=owner, assignee=user, workspace=workspace, title="Do workspace", status=TaskStatus.PENDING)
+
+    response = client.get("/api/v1/dashboard", headers=auth_headers(user))
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 2
+
+
+def test_dashboard_still_excludes_tasks_from_workspaces_user_does_not_belong_to(
+    client, make_user, make_workspace, make_task, auth_headers
+):
+    user = make_user()
+    other_owner = make_user(email="unrelated-owner@example.com")
+    other_workspace = make_workspace(owner=other_owner, name="Workspace alheio")
+    make_task(creator=other_owner, workspace=other_workspace, status=TaskStatus.PENDING)
+
+    response = client.get("/api/v1/dashboard", headers=auth_headers(user))
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 0
