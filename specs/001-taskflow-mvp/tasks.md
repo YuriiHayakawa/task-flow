@@ -246,44 +246,44 @@ concluir — sem depender de nenhuma outra story.
 
 ### Testes
 
-- [ ] T037 [P] [US1] Testes de integração de cadastro/login/rotas protegidas/conta desativada
+- [x] T037 [P] [US1] Testes de integração de cadastro/login/rotas protegidas/conta desativada
   (`403 ACCOUNT_DISABLED` distinto de `401 INVALID_CREDENTIALS`) em
   `backend/tests/integration/test_auth.py`
-- [ ] T038 [P] [US1] Testes de integração de CRUD de tarefas pessoais (criar/listar/editar/concluir/
+- [x] T038 [P] [US1] Testes de integração de CRUD de tarefas pessoais (criar/listar/editar/concluir/
   reabrir) em `backend/tests/integration/test_personal_tasks.py`
-- [ ] T039 [P] [US1] Testes unitários das invariantes de tarefa pessoal em `TaskService`
+- [x] T039 [P] [US1] Testes unitários das invariantes de tarefa pessoal em `TaskService`
   (`assignee_id == creator_id` forçado e imutável enquanto `workspace_id IS NULL`,
   `completed_at` setado/limpo) em `backend/tests/unit/test_task_service.py`
 
 ### Schemas
 
-- [ ] T040 [P] [US1] Criar `backend/app/schemas/user.py` (`UserCreate`, `UserRead` — nunca expõe
+- [x] T040 [P] [US1] Criar `backend/app/schemas/user.py` (`UserCreate`, `UserRead` — nunca expõe
   `password_hash`) (depende de T017)
-- [ ] T041 [P] [US1] Criar `backend/app/schemas/task.py` (`TaskCreate`, `TaskUpdate`, `TaskRead` —
+- [x] T041 [P] [US1] Criar `backend/app/schemas/task.py` (`TaskCreate`, `TaskUpdate`, `TaskRead` —
   regras de tarefa pessoal: `project_id` requer `workspace_id`; enums de status/prioridade) (depende
   de T016, T021)
 
 ### Repositories
 
-- [ ] T042 [P] [US1] Criar `backend/app/repositories/user_repository.py` (`create`, `get_by_email`,
+- [x] T042 [P] [US1] Criar `backend/app/repositories/user_repository.py` (`create`, `get_by_email`,
   `get_by_id`) (depende de T017)
-- [ ] T043 [P] [US1] Criar `backend/app/repositories/task_repository.py` (`create`, `get_by_id`,
+- [x] T043 [P] [US1] Criar `backend/app/repositories/task_repository.py` (`create`, `get_by_id`,
   `list_personal_by_creator`, `update`, expressão reutilizável de "tarefa ativa") (depende de T021)
 
 ### Services
 
-- [ ] T044 [US1] Criar `backend/app/services/auth_service.py` (`register`: e-mail único
+- [x] T044 [US1] Criar `backend/app/services/auth_service.py` (`register`: e-mail único
   case-insensitive + hash `bcrypt`; `login`: verifica senha, distingue `ACCOUNT_DISABLED` de
   `INVALID_CREDENTIALS`, emite JWT) (depende de T012, T040, T042)
-- [ ] T045 [US1] Criar `backend/app/services/task_service.py` — regras de tarefa pessoal (força
+- [x] T045 [US1] Criar `backend/app/services/task_service.py` — regras de tarefa pessoal (força
   `assignee_id = creator_id`; rejeita `assignee_id` diferente e `project_id` sem `workspace_id`;
   `status = DONE` seta `completed_at`, reabrir limpa) (depende de T041, T043)
 
 ### Routes
 
-- [ ] T046 [US1] Criar `backend/app/routes/auth.py` (`POST /api/v1/auth/register`,
+- [x] T046 [US1] Criar `backend/app/routes/auth.py` (`POST /api/v1/auth/register`,
   `POST /api/v1/auth/login`) e registrar o router em `backend/app/main.py` (depende de T044)
-- [ ] T047 [US1] Criar `backend/app/routes/tasks.py` (`POST /api/v1/tasks`,
+- [x] T047 [US1] Criar `backend/app/routes/tasks.py` (`POST /api/v1/tasks`,
   `GET /api/v1/tasks/{task_id}`, `PATCH /api/v1/tasks/{task_id}` — caminho de tarefa pessoal;
   autorização de workspace chega na US4/US5) e registrar o router em `backend/app/main.py` (depende
   de T045, T034)
@@ -303,25 +303,25 @@ retorna contagens corretas; usuário sem tarefas recebe zeros; tarefas de tercei
 
 ### Testes
 
-- [ ] T048 [P] [US2] Testes de integração do dashboard (contagens por status, atrasada/vencendo hoje
+- [x] T048 [P] [US2] Testes de integração do dashboard (contagens por status, atrasada/vencendo hoje
   usando `APP_TIMEZONE`, estado vazio, exclusão de tarefas pessoais de terceiros) em
   `backend/tests/integration/test_dashboard.py`
 
 ### Repositories
 
-- [ ] T049 [US2] Adicionar consultas agregadas de contagem (por status; atrasada/vencendo hoje via
+- [x] T049 [US2] Adicionar consultas agregadas de contagem (por status; atrasada/vencendo hoje via
   `APP_TIMEZONE`) em `backend/app/repositories/task_repository.py` (depende de T043, T009)
 
 ### Schemas & Services
 
-- [ ] T050 [US2] Criar `backend/app/schemas/dashboard.py` (`DashboardSummary`) e
+- [x] T050 [US2] Criar `backend/app/schemas/dashboard.py` (`DashboardSummary`) e
   `backend/app/services/dashboard_service.py` (combina tarefas pessoais do usuário; a união com
   tarefas de workspace fica pronta para uso quando a US3/US4 introduzirem
   `Workspace`/`WorkspaceMember`, sem exigir alteração futura desta função) (depende de T049)
 
 ### Routes
 
-- [ ] T051 [US2] Criar `backend/app/routes/dashboard.py` (`GET /api/v1/dashboard`) e registrar o
+- [x] T051 [US2] Criar `backend/app/routes/dashboard.py` (`GET /api/v1/dashboard`) e registrar o
   router em `backend/app/main.py` (depende de T050, T034)
 
 **Checkpoint**: US1 e US2 funcionam de forma independente (MVP mínimo completo).

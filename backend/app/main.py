@@ -7,6 +7,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.routes.auth import router as auth_router
+from app.routes.dashboard import router as dashboard_router
 from app.routes.tasks import router as tasks_router
 
 
@@ -29,4 +30,5 @@ register_exception_handlers(app)
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth_router)
 api_router.include_router(tasks_router)
+api_router.include_router(dashboard_router)
 app.include_router(api_router)

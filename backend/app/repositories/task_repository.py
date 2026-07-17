@@ -1,6 +1,8 @@
 import uuid
+from collections.abc import Sequence
+from datetime import date
 
-from sqlalchemy import ColumnElement, select
+from sqlalchemy import ColumnElement, and_, false, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.enums.task_status import TaskStatus
@@ -40,3 +42,40 @@ class TaskRepository:
     def update(self, task: Task) -> Task:
         self.db.flush()
         return task
+
+    def count_by_status(
+        self,
+        *,
+        creator_id: uuid.UUID,
+        workspace_ids: Sequence[uuid.UUID],
+        today: date,
+    ) -> dict[str, int]:
+        """Contagens do dashboard (FR-047 a FR-050): tarefas pessoais do
+        próprio usuário + tarefas dos workspaces em `workspace_ids` (vazio até
+        a US3/US4 ativarem a união em T065 — esta consulta não muda, só passa
+        a receber uma lista não vazia). "Atrasada"/"vencendo hoje" usam
+        `today` já calculado na timezone da aplicação pelo chamador
+        (research.md #9), nunca `CURRENT_DATE` do banco (que seria UTC)."""
+        visible = or_(
+            and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
+            Task.workspace_id.in_(workspace_ids) if workspace_ids else false(),
+        )
+        active = active_task_filter()
+
+        stmt = select(
+            func.count().filter(visible, Task.status == TaskStatus.PENDING).label("pending"),
+            func.count()
+            .filter(visible, Task.status == TaskStatus.IN_PROGRESS)
+            .label("in_progress"),
+            func.count().filter(visible, Task.status == TaskStatus.DONE).label("done"),
+            func.count().filter(visible, active, Task.due_date < today).label("overdue"),
+            func.count().filter(visible, active, Task.due_date == today).label("due_today"),
+        )
+        row = self.db.execute(stmt).one()
+        return {
+            "pending": row.pending,
+            "in_progress": row.in_progress,
+            "done": row.done,
+            "overdue": row.overdue,
+            "due_today": row.due_today,
+        }
