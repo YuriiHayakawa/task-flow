@@ -6,6 +6,8 @@ from fastapi import APIRouter, FastAPI
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
+from app.routes.auth import router as auth_router
+from app.routes.tasks import router as tasks_router
 
 
 @asynccontextmanager
@@ -25,4 +27,6 @@ register_exception_handlers(app)
 # Mount point único para todas as rotas de negócio (Fases 3+) — evita repetir
 # prefix="/api/v1" em cada app.include_router(...) futuro.
 api_router = APIRouter(prefix="/api/v1")
+api_router.include_router(auth_router)
+api_router.include_router(tasks_router)
 app.include_router(api_router)

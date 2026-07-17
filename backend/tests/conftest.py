@@ -15,7 +15,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection
+from sqlalchemy.engine import Connection, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
@@ -33,11 +33,39 @@ from app.models.workspace_member import WorkspaceMember
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 
+# Nomes de banco que a suíte MUST NOT tocar sob nenhuma hipótese — "taskflow" é o
+# banco de desenvolvimento (as mesmas migrações são aplicadas nele fora dos testes).
+_FORBIDDEN_DATABASE_NAMES = {"taskflow", "postgres", "template0", "template1"}
+
+
+def _guard_test_database_or_abort(database_url: str) -> str:
+    """Aborta a sessão inteira de testes (antes de qualquer migração/DDL) se
+    `DATABASE_URL` não apontar claramente para um banco de testes descartável.
+
+    Regra: o nome do banco MUST NOT ser um dos bancos reservados (`taskflow`,
+    `postgres`, `template0/1`) e MUST conter "test" no nome (ex.: `taskflow_test`).
+    Isso nunca deve depender apenas de o desenvolvedor lembrar de configurar a
+    variável de ambiente certa — a suíte recusa-se a rodar sem essa confirmação.
+    """
+    database_name = (make_url(database_url).database or "").lower()
+
+    if not database_name or database_name in _FORBIDDEN_DATABASE_NAMES or "test" not in database_name:
+        pytest.exit(
+            "ABORTADO: DATABASE_URL não aponta para um banco de teste reconhecível "
+            f"(banco detectado: {database_name!r}). Esperado algo como 'taskflow_test'. "
+            "A suíte nunca deve rodar migrações destrutivas (alembic downgrade base) "
+            "contra o banco de desenvolvimento 'taskflow'.",
+            returncode=1,
+        )
+    return database_name
+
 
 @pytest.fixture(scope="session")
 def _migrated_database() -> Generator[None, None, None]:
     """Aplica as 4 migrações agrupadas uma única vez para toda a sessão de testes,
-    e reverte tudo ao final."""
+    e reverte tudo ao final. Só executa depois de confirmar que `DATABASE_URL`
+    aponta para um banco de teste descartável (nunca o de desenvolvimento)."""
+    _guard_test_database_or_abort(settings.DATABASE_URL)
     alembic_cfg = Config(str(ALEMBIC_INI))
     command.upgrade(alembic_cfg, "head")
     yield
