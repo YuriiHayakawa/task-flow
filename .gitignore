@@ -30,3 +30,6 @@ Thumbs.db
 logs/
 *.log
 backend/uploads/
+
+# Docker Compose overrides específicos de máquina (ex.: remapeamento de porta local)
+docker-compose.override.yml
