@@ -43,6 +43,19 @@ class TaskRepository:
         self.db.flush()
         return task
 
+    def list_active_by_assignee_in_workspace(
+        self, workspace_id: uuid.UUID, assignee_id: uuid.UUID
+    ) -> list[Task]:
+        """Usado por `WorkspaceMemberService` (FR-024/FR-025) para bloquear a
+        remoção de um membro responsável por tarefas ativas no workspace,
+        até que sejam reatribuídas."""
+        stmt = select(Task).where(
+            Task.workspace_id == workspace_id,
+            Task.assignee_id == assignee_id,
+            active_task_filter(),
+        )
+        return list(self.db.scalars(stmt))
+
     def count_by_status(
         self,
         *,

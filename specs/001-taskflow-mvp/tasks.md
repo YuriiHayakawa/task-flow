@@ -342,62 +342,62 @@ cada role só executa as ações permitidas para si; transferir titularidade com
 
 ### Testes
 
-- [ ] T052 [P] [US3] Testes de integração de CRUD de workspace e matriz de permissões Owner/Admin/
+- [x] T052 [P] [US3] Testes de integração de CRUD de workspace e matriz de permissões Owner/Admin/
   Member em `backend/tests/integration/test_workspaces.py`
-- [ ] T053 [P] [US3] Testes de integração de concorrência na transferência de Owner (`SELECT ... FOR
+- [x] T053 [P] [US3] Testes de integração de concorrência na transferência de Owner (`SELECT ... FOR
   UPDATE`, serialização, `409` em conflito — `research.md` #20) em
   `backend/tests/integration/test_workspace_ownership.py`
-- [ ] T054 [P] [US3] Teste de integração que força a violação do índice único parcial de Owner
+- [x] T054 [P] [US3] Teste de integração que força a violação do índice único parcial de Owner
   (dois `OWNER` no mesmo workspace) em `backend/tests/integration/test_workspace_ownership.py`
-- [ ] T055 [P] [US3] Testes de integração de bloqueio de remoção de membro com tarefas ativas até
+- [x] T055 [P] [US3] Testes de integração de bloqueio de remoção de membro com tarefas ativas até
   reatribuição em `backend/tests/integration/test_workspace_members.py`
-- [ ] T056 [P] [US3] Testes unitários de `WorkspaceMemberService` (só Owner promove/rebaixa/remove
+- [x] T056 [P] [US3] Testes unitários de `WorkspaceMemberService` (só Owner promove/rebaixa/remove
   Admin; ninguém altera/remove o Owner por outra via) em
   `backend/tests/unit/test_workspace_member_service.py`
 
 ### Schemas
 
-- [ ] T057 [US3] Criar `backend/app/schemas/workspace.py` (`WorkspaceCreate`, `WorkspaceUpdate`,
+- [x] T057 [US3] Criar `backend/app/schemas/workspace.py` (`WorkspaceCreate`, `WorkspaceUpdate`,
   `WorkspaceRead`) e `backend/app/schemas/workspace_member.py` (`WorkspaceMemberCreate`,
   `WorkspaceMemberRoleUpdate`, `WorkspaceMemberRead`, `TransferOwnershipRequest`) (depende de T016,
   T018, T019)
 
 ### Repositories
 
-- [ ] T058 [P] [US3] Criar `backend/app/repositories/workspace_repository.py` (`create`,
+- [x] T058 [P] [US3] Criar `backend/app/repositories/workspace_repository.py` (`create`,
   `get_by_id`, `list_for_user`, `update`, `delete`) (depende de T018)
-- [ ] T059 [P] [US3] Criar `backend/app/repositories/workspace_member_repository.py` (`create`,
+- [x] T059 [P] [US3] Criar `backend/app/repositories/workspace_member_repository.py` (`create`,
   `get_owner_for_update` e `get_member_for_update` com `SELECT ... FOR UPDATE`, `list_by_workspace`,
   `delete`, `get_role`) (depende de T019)
 
 ### Services
 
-- [ ] T060 [US3] Criar `backend/app/services/workspace_service.py` (criar workspace → Owner
+- [x] T060 [US3] Criar `backend/app/services/workspace_service.py` (criar workspace → Owner
   automático na mesma transação; atualizar/excluir restrito ao Owner) (depende de T057, T058, T059)
-- [ ] T061 [US3] Criar `backend/app/services/workspace_member_service.py` (adicionar Member
+- [x] T061 [US3] Criar `backend/app/services/workspace_member_service.py` (adicionar Member
   Owner/Admin; promover/rebaixar Admin exclusivo do Owner; remover membro bloqueado se responsável
   por tarefas ativas — consulta `task_repository`; `transfer_ownership` com duplo `SELECT ... FOR
   UPDATE`, reconfirmação sob lock e rollback integral — `research.md` #20) (depende de T059, T043)
 
 ### Dependencies
 
-- [ ] T062 [US3] Criar `backend/app/dependencies/authorization.py` (`require_workspace_member`,
+- [x] T062 [US3] Criar `backend/app/dependencies/authorization.py` (`require_workspace_member`,
   `require_workspace_admin_or_owner`, `require_workspace_owner` — `404` para não-membros, `403` para
   role insuficiente) (depende de T059, T034)
 
 ### Routes
 
-- [ ] T063 [US3] Criar `backend/app/routes/workspaces.py` (`POST/GET/PATCH/DELETE
+- [x] T063 [US3] Criar `backend/app/routes/workspaces.py` (`POST/GET/PATCH/DELETE
   /api/v1/workspaces`, `POST /api/v1/workspaces/{id}/transfer-ownership`) e registrar o router em
   `backend/app/main.py` (depende de T060, T062)
-- [ ] T064 [US3] Criar `backend/app/routes/workspace_members.py` (`GET/POST
+- [x] T064 [US3] Criar `backend/app/routes/workspace_members.py` (`GET/POST
   /api/v1/workspaces/{id}/members`, `PATCH .../members/{user_id}/role`,
   `DELETE .../members/{user_id}`) e registrar o router em `backend/app/main.py` (depende de T061,
   T062)
 
 ### Integração
 
-- [ ] T065 [US3] Ativar a união com tarefas de workspace em
+- [x] T065 [US3] Ativar a união com tarefas de workspace em
   `backend/app/services/dashboard_service.py` e nas consultas de `task_repository.py` agora que
   `Workspace`/`WorkspaceMember` existem (depende de T050, T060)
 

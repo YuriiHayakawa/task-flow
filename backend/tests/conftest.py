@@ -149,6 +149,19 @@ def make_workspace(db_session: Session):
 
 
 @pytest.fixture()
+def add_workspace_member(db_session: Session):
+    def _add_workspace_member(
+        *, workspace: Workspace, user: User, role: WorkspaceRole = WorkspaceRole.MEMBER
+    ) -> WorkspaceMember:
+        membership = WorkspaceMember(workspace_id=workspace.id, user_id=user.id, role=role)
+        db_session.add(membership)
+        db_session.flush()
+        return membership
+
+    return _add_workspace_member
+
+
+@pytest.fixture()
 def make_task(db_session: Session):
     def _make_task(
         *,
