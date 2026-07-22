@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from app.core.exceptions import BusinessRuleViolationError, ForbiddenError, NotFoundError
+from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
 from app.enums.task_status import TaskStatus
 from app.models.task import Task
 from app.repositories.project_repository import ProjectRepository
@@ -115,15 +115,16 @@ class TaskService:
     def list_personal_tasks(self, creator_id: uuid.UUID) -> list[Task]:
         return self.task_repository.list_personal_by_creator(creator_id)
 
-    def get_personal_task_or_404(self, task_id: uuid.UUID, creator_id: uuid.UUID) -> Task:
-        """Tarefa pessoal MUST ser visível/editável somente pelo próprio criador
-        (data-model.md, invariantes de tarefa pessoal) — qualquer outro caso
-        (não existe, é de workspace, ou pertence a outro usuário) é 404, nunca
-        403, para não confirmar a existência do recurso a quem não tem acesso."""
-        task = self.task_repository.get_by_id(task_id)
-        if task is None or task.workspace_id is not None or task.creator_id != creator_id:
-            raise NotFoundError("Tarefa não encontrada.")
-        return task
+    def delete(self, task: Task) -> None:
+        """FR-005 (US1)/refinamento #7 (US5): a autorização (criador, ou
+        Owner/Admin do workspace — `require_task_delete`, T077) já ocorreu
+        na dependency da rota; aqui só a exclusão em si. Cascade de banco
+        (`ON DELETE CASCADE`, já definido nas migrações da Fase 2) remove
+        `TaskMember`/`Comment`/`ChecklistItem`/`Attachment`/
+        `TaskHistoryEntry`/`Notification` relacionados — todas essas tabelas
+        estão vazias até as fases que implementam essas funcionalidades."""
+        self.task_repository.delete(task)
+        self.db.commit()
 
     def update(self, task: Task, data: TaskUpdate) -> Task:
         """`status = DONE` seta `completed_at`; reabrir limpa (FR-011). Conversão
