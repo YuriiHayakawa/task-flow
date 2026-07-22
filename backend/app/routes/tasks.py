@@ -7,7 +7,9 @@ from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.models.task import Task
 from app.models.user import User
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
+from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.common import PaginatedResponse
 from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from app.services.task_service import TaskService
@@ -18,7 +20,7 @@ _DEFAULT_PAGE_SIZE = 20
 
 
 def get_task_service(db: Session = Depends(get_db)) -> TaskService:
-    return TaskService(TaskRepository(db))
+    return TaskService(TaskRepository(db), ProjectRepository(db), WorkspaceMemberRepository(db))
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)

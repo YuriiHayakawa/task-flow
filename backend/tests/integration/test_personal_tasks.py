@@ -45,23 +45,6 @@ def test_create_personal_task_rejects_assignee_different_from_creator(
     assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
 
 
-def test_create_task_rejects_project_without_workspace(client, make_user, auth_headers):
-    user = make_user()
-    headers = auth_headers(user)
-
-    response = client.post(
-        "/api/v1/tasks",
-        json={
-            "title": "Tarefa inválida",
-            "project_id": "11111111-1111-1111-1111-111111111111",
-        },
-        headers=headers,
-    )
-
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
-
-
 def test_list_personal_tasks_returns_only_own_tasks(client, make_user, make_task, auth_headers):
     user = make_user()
     other = make_user(email="other2@example.com")

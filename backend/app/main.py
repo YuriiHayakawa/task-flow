@@ -8,6 +8,7 @@ from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.projects import router as projects_router
 from app.routes.tasks import router as tasks_router
 from app.routes.workspace_members import router as workspace_members_router
 from app.routes.workspaces import router as workspaces_router
@@ -35,4 +36,5 @@ api_router.include_router(tasks_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(workspaces_router)
 api_router.include_router(workspace_members_router)
+api_router.include_router(projects_router)
 app.include_router(api_router)

@@ -416,40 +416,40 @@ cria uma tarefa vinculada a ele, visível aos demais membros.
 
 ### Testes
 
-- [ ] T066 [P] [US4] Testes de integração de CRUD de projeto e permissões (Owner/Admin criam/editam/
+- [x] T066 [P] [US4] Testes de integração de CRUD de projeto e permissões (Owner/Admin criam/editam/
   excluem; Member só visualiza) em `backend/tests/integration/test_projects.py`
-- [ ] T067 [P] [US4] Testes de integração de exclusão de projeto preservando tarefas (`project_id`
+- [x] T067 [P] [US4] Testes de integração de exclusão de projeto preservando tarefas (`project_id`
   vira `null`, workspace mantido, comentários/checklists/anexos/histórico/participantes intactos) em
   `backend/tests/integration/test_project_deletion.py`
-- [ ] T068 [P] [US4] Testes de integração de criação de tarefa em workspace/projeto (workspace
+- [x] T068 [P] [US4] Testes de integração de criação de tarefa em workspace/projeto (workspace
   derivado do projeto; incompatibilidade workspace/projeto rejeitada; responsável deve ser membro do
   workspace) em `backend/tests/integration/test_workspace_tasks.py`
 
 ### Schemas & Repositories
 
-- [ ] T069 [P] [US4] Criar `backend/app/schemas/project.py` (`ProjectCreate`, `ProjectUpdate`,
+- [x] T069 [P] [US4] Criar `backend/app/schemas/project.py` (`ProjectCreate`, `ProjectUpdate`,
   `ProjectRead`) e `backend/app/repositories/project_repository.py` (`create`, `get_by_id`,
   `list_by_workspace`, `update`, `delete`) (depende de T020)
 
 ### Services
 
-- [ ] T070 [US4] Criar `backend/app/services/project_service.py` (criar/editar restrito a Owner/
+- [x] T070 [US4] Criar `backend/app/services/project_service.py` (criar/editar restrito a Owner/
   Admin; excluir via service — `ON DELETE SET NULL` desvincula tarefas, log estruturado com
   contagem de tarefas afetadas, nenhuma `TaskHistoryEntry` gerada — `data-model.md`) (depende de
   T069, T062)
 
 ### Routes
 
-- [ ] T071 [US4] Criar `backend/app/routes/projects.py` (`POST/GET /api/v1/workspaces/{id}/projects`,
+- [x] T071 [US4] Criar `backend/app/routes/projects.py` (`POST/GET /api/v1/workspaces/{id}/projects`,
   `GET/PATCH/DELETE /api/v1/projects/{id}`) e registrar o router em `backend/app/main.py` (depende
   de T070)
 
 ### Integração
 
-- [ ] T072 [US4] Estender `backend/app/services/task_service.py` para tarefas de workspace/projeto
+- [x] T072 [US4] Estender `backend/app/services/task_service.py` para tarefas de workspace/projeto
   (derivar workspace a partir do projeto; validar consistência workspace/projeto — FR-008; validar
   que responsável é membro do workspace) (depende de T045, T069, T059)
-- [ ] T073 [US4] Estender `backend/app/routes/tasks.py` com a criação de tarefas de workspace/projeto
+- [x] T073 [US4] Estender `backend/app/routes/tasks.py` com a criação de tarefas de workspace/projeto
   (depende de T072, T071)
 
 **Checkpoint**: US1–US4 funcionam de forma independente.

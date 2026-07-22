@@ -25,6 +25,7 @@ from app.enums.task_priority import TaskPriority
 from app.enums.task_status import TaskStatus
 from app.enums.workspace_role import WorkspaceRole
 from app.main import app
+from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.models.workspace import Workspace
@@ -162,6 +163,19 @@ def add_workspace_member(db_session: Session):
 
 
 @pytest.fixture()
+def make_project(db_session: Session):
+    def _make_project(
+        *, workspace: Workspace, name: str = "Test Project", description: str | None = None
+    ) -> Project:
+        project = Project(workspace_id=workspace.id, name=name, description=description)
+        db_session.add(project)
+        db_session.flush()
+        return project
+
+    return _make_project
+
+
+@pytest.fixture()
 def make_task(db_session: Session):
     def _make_task(
         *,
@@ -169,15 +183,18 @@ def make_task(db_session: Session):
         assignee: User | None = None,
         title: str = "Test Task",
         workspace: Workspace | None = None,
+        project: Project | None = None,
         status: TaskStatus = TaskStatus.PENDING,
         priority: TaskPriority = TaskPriority.MEDIUM,
         due_date: date | None = None,
     ) -> Task:
+        resolved_workspace_id = workspace.id if workspace else (project.workspace_id if project else None)
         task = Task(
             title=title,
             creator_id=creator.id,
             assignee_id=(assignee or creator).id,
-            workspace_id=workspace.id if workspace else None,
+            workspace_id=resolved_workspace_id,
+            project_id=project.id if project else None,
             status=status,
             priority=priority,
             due_date=due_date,
