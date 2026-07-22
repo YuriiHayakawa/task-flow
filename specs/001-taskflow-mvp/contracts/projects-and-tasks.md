@@ -65,12 +65,23 @@ Members), FR-055 a FR-059 (Search/Filters/Ordering).
   criador), `workspace_id?`, `project_id?`.
 - **Regras de negócio (validadas no `TaskService`, não apenas no schema)**:
   - Se `project_id` informado e `workspace_id` ausente → `workspace_id` MUST ser
-    derivado do projeto (FR-008).
+    derivado do projeto (FR-008). Se o `project_id` informado não corresponder a
+    nenhum projeto existente, a resposta MUST ser `403` — **o mesmo código usado para
+    "criador não é membro do workspace"**, nunca `404`: este endpoint não distingue
+    "projeto inexistente" de "projeto existente mas inacessível ao chamador", pela
+    mesma razão pela qual `workspace_id` inexistente já usa `403` em vez de `404`
+    abaixo — o identificador foi fornecido pelo próprio chamador no corpo da
+    requisição (não inferido de um path de recurso aninhado), então não há ganho de
+    segurança em diferenciar as duas causas, e uma resposta uniforme evita que o
+    chamador confirme a existência de um `project_id` que não pode acessar.
   - Se `project_id` informado e `workspace_id` também informado → MUST coincidir com o
     workspace do projeto, senão `400`.
   - Se `workspace_id` informado → o criador MUST ser membro desse workspace (`403`
-    caso contrário); `assignee_id` (se informado) MUST ser membro do mesmo workspace
-    (`400` caso contrário).
+    caso contrário — inclui tanto "workspace inexistente" quanto "workspace existe mas
+    não sou membro", sem distinção, mesma justificativa do `project_id` acima);
+    `assignee_id` (se informado) MUST ser membro do mesmo workspace (`400` caso
+    contrário — inclui tanto "usuário inexistente" quanto "usuário existente mas não
+    membro", sem distinção).
   - **Se nem `workspace_id` nem `project_id` informados → tarefa pessoal (invariantes
     completas em `data-model.md`)**: `assignee_id`, se informado, MUST ser igual ao
     `creator_id` — enviar um `assignee_id` diferente do próprio usuário para uma tarefa
@@ -78,7 +89,8 @@ Members), FR-055 a FR-059 (Search/Filters/Ordering).
     é criada com projeto e sem workspace).
 - **Respostas**: `201` (`TaskRead`) · `400` (inconsistência workspace/projeto, assignee
   fora do workspace, ou tentativa de atribuir tarefa pessoal a terceiro) · `403`
-  (não-membro tentando criar no workspace) · `422`.
+  (não-membro tentando criar no workspace, workspace inexistente, projeto inexistente,
+  ou projeto inacessível) · `422`.
 
 ### `GET /api/v1/tasks`
 

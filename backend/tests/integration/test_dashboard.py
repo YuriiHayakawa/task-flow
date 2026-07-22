@@ -141,3 +141,33 @@ def test_dashboard_still_excludes_tasks_from_workspaces_user_does_not_belong_to(
 
     assert response.status_code == 200
     assert response.json()["counts"]["pending"] == 0
+
+
+def test_dashboard_counts_project_task_via_workspace_membership_without_duplication(
+    client, make_user, make_workspace, add_workspace_member, make_project, make_task, auth_headers
+):
+    """T072/US4: uma tarefa vinculada a um projeto é contada pelo dashboard
+    através da MESMA união por `workspace_id` já ativada na T065 — nenhuma
+    lógica adicional específica de projeto é necessária, e a tarefa nunca é
+    contada mais de uma vez (é uma única linha em `tasks`, `project_id` não
+    entra em nenhuma cláusula de contagem separada)."""
+    user = make_user()
+    owner = make_user(email="ws-owner-project-dashboard@example.com")
+    workspace = make_workspace(owner=owner, name="Workspace com projeto")
+    add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
+    project = make_project(workspace=workspace)
+
+    make_task(creator=user, title="Pessoal", status=TaskStatus.PENDING)
+    make_task(
+        creator=owner,
+        assignee=user,
+        workspace=workspace,
+        project=project,
+        title="Tarefa de projeto",
+        status=TaskStatus.PENDING,
+    )
+
+    response = client.get("/api/v1/dashboard", headers=auth_headers(user))
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 2

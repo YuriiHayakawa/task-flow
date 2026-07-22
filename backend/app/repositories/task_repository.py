@@ -56,6 +56,14 @@ class TaskRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def count_by_project(self, project_id: uuid.UUID) -> int:
+        """Usado apenas para o log estruturado de `ProjectService.delete`
+        (refinamento #6, data-model.md) — nunca como pré-condição de exclusão:
+        a exclusão de projeto é sempre permitida, e o `ON DELETE SET NULL` do
+        banco desvincula as tarefas automaticamente na mesma transação."""
+        stmt = select(func.count()).select_from(Task).where(Task.project_id == project_id)
+        return self.db.scalar(stmt) or 0
+
     def count_by_status(
         self,
         *,

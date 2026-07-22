@@ -1,38 +1,39 @@
 import uuid
 from datetime import datetime, timezone
 
-from app.core.exceptions import BusinessRuleViolationError, NotFoundError
+from app.core.exceptions import BusinessRuleViolationError, ForbiddenError, NotFoundError
 from app.enums.task_status import TaskStatus
 from app.models.task import Task
+from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
+from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.task import TaskCreate, TaskUpdate
 
 
 class TaskService:
-    def __init__(self, task_repository: TaskRepository) -> None:
+    def __init__(
+        self,
+        task_repository: TaskRepository,
+        project_repository: ProjectRepository,
+        workspace_member_repository: WorkspaceMemberRepository,
+    ) -> None:
         self.task_repository = task_repository
+        self.project_repository = project_repository
+        self.workspace_member_repository = workspace_member_repository
         self.db = task_repository.db
 
     def create(self, data: TaskCreate, creator_id: uuid.UUID) -> Task:
-        """FR-006/FR-007/FR-029/FR-031: regras de tarefa pessoal. A derivação de
-        workspace a partir de projeto e a validação de membership chegam na US4
-        (T072) — aqui só o caminho sem workspace/projeto é processado."""
-        if data.project_id is not None and data.workspace_id is None:
-            raise BusinessRuleViolationError(
-                "Uma tarefa com projeto deve também informar o workspace."
-            )
-
-        if data.workspace_id is None:
-            # Tarefa pessoal: o responsável é sempre o próprio criador — nunca
-            # pode ser atribuída a outro usuário (invariante de tarefa pessoal).
-            if data.assignee_id is not None and data.assignee_id != creator_id:
-                raise BusinessRuleViolationError(
-                    "Uma tarefa pessoal não pode ser atribuída a outro usuário."
-                )
-            assignee_id = creator_id
+        """FR-006 a FR-008, FR-021, FR-029, FR-031 (US4/T072): tarefa pessoal,
+        de workspace direto, ou de projeto — toda a derivação/validação abaixo
+        ocorre antes de qualquer persistência, e um único `commit()` fecha a
+        transação (nenhuma escrita parcial em caso de erro)."""
+        if data.workspace_id is None and data.project_id is None:
+            workspace_id: uuid.UUID | None = None
+            project_id: uuid.UUID | None = None
+            assignee_id = self._resolve_personal_assignee(data, creator_id)
         else:
-            # Tarefa de workspace: validação completa de membership chega na US4.
-            assignee_id = data.assignee_id or creator_id
+            workspace_id, project_id = self._resolve_workspace_and_project(data, creator_id)
+            assignee_id = self._resolve_workspace_assignee(data, workspace_id, creator_id)
 
         task = Task(
             title=data.title,
@@ -42,13 +43,74 @@ class TaskService:
             due_date=data.due_date,
             assignee_id=assignee_id,
             creator_id=creator_id,
-            workspace_id=data.workspace_id,
-            project_id=data.project_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
         )
         task = self.task_repository.create(task)
         self.db.commit()
         self.db.refresh(task)
         return task
+
+    def _resolve_personal_assignee(self, data: TaskCreate, creator_id: uuid.UUID) -> uuid.UUID:
+        """Invariante de tarefa pessoal (data-model.md): o responsável é
+        sempre o próprio criador — nunca pode ser atribuída a outro usuário."""
+        if data.assignee_id is not None and data.assignee_id != creator_id:
+            raise BusinessRuleViolationError(
+                "Uma tarefa pessoal não pode ser atribuída a outro usuário."
+            )
+        return creator_id
+
+    def _resolve_workspace_and_project(
+        self, data: TaskCreate, creator_id: uuid.UUID
+    ) -> tuple[uuid.UUID, uuid.UUID | None]:
+        """FR-008: se `project_id` for informado, deriva/valida o `workspace_id`
+        a partir dele; em seguida confirma que o criador é membro do workspace
+        resultante (`403` — contracts/projects-and-tasks.md trata isso como
+        autorização, não como recurso oculto, já que o próprio chamador
+        forneceu o `workspace_id`/`project_id` no corpo da requisição).
+
+        Um `project_id` que não existe é tratado com o mesmo `403` de "criador
+        não é membro" — nenhum dos dois casos confirma ao chamador se o
+        projeto existe, mesma postura de segurança usada para `workspace_id`
+        inexistente (`get_role` retorna `None` de forma idêntica para
+        "workspace inexistente" e "workspace existe mas não sou membro" — não
+        há distinção proposital entre os dois)."""
+        if data.project_id is not None:
+            project = self.project_repository.get_by_id(data.project_id)
+            if project is None:
+                raise ForbiddenError("Você não tem permissão para criar tarefas neste projeto.")
+
+            if data.workspace_id is not None and data.workspace_id != project.workspace_id:
+                raise BusinessRuleViolationError(
+                    "O projeto informado não pertence ao workspace informado."
+                )
+
+            workspace_id = project.workspace_id
+        else:
+            assert data.workspace_id is not None  # garantido pelo caller
+            workspace_id = data.workspace_id
+
+        role = self.workspace_member_repository.get_role(workspace_id, creator_id)
+        if role is None:
+            raise ForbiddenError("Você não é membro deste workspace.")
+
+        return workspace_id, data.project_id
+
+    def _resolve_workspace_assignee(
+        self, data: TaskCreate, workspace_id: uuid.UUID, creator_id: uuid.UUID
+    ) -> uuid.UUID:
+        """FR-021: qualquer membro do workspace pode ser responsável. Sem
+        `assignee_id`, o próprio criador assume — já confirmado membro por
+        `_resolve_workspace_and_project`, sem precisar reconsultar."""
+        if data.assignee_id is None or data.assignee_id == creator_id:
+            return creator_id
+
+        role = self.workspace_member_repository.get_role(workspace_id, data.assignee_id)
+        if role is None:
+            raise BusinessRuleViolationError(
+                "O responsável pela tarefa deve ser membro deste workspace."
+            )
+        return data.assignee_id
 
     def list_personal_tasks(self, creator_id: uuid.UUID) -> list[Task]:
         return self.task_repository.list_personal_by_creator(creator_id)
