@@ -513,27 +513,27 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T080 [P] [US6] Testes de integração de comentários (criação, conteúdo vazio rejeitado, criação
+- [x] T080 [P] [US6] Testes de integração de comentários (criação, conteúdo vazio rejeitado, criação
   restrita a participantes, listagem visível a todo membro do workspace) em
   `backend/tests/integration/test_comments.py`
 
 ### Schemas & Repositories
 
-- [ ] T081 [P] [US6] Criar `backend/app/schemas/comment.py` (`CommentCreate`, `CommentRead`) e
+- [x] T081 [P] [US6] Criar `backend/app/schemas/comment.py` (`CommentCreate`, `CommentRead`) e
   `backend/app/repositories/comment_repository.py` (`create`, `list_by_task`) (depende de T023)
-- [ ] T082 [P] [US6] Criar `backend/app/repositories/notification_repository.py` (`create`,
+- [x] T082 [P] [US6] Criar `backend/app/repositories/notification_repository.py` (`create`,
   `list_by_recipient`, `mark_read` — primeiro consumidor é `NEW_COMMENT`, estendido na US11) (depende
   de T027)
 
 ### Services
 
-- [ ] T083 [US6] Criar `backend/app/services/comment_service.py` (rejeita conteúdo vazio; cria
+- [x] T083 [US6] Criar `backend/app/services/comment_service.py` (rejeita conteúdo vazio; cria
   comentário + notificação `NEW_COMMENT` para os demais participantes na mesma transação —
   `research.md` #19) (depende de T081, T082, T076)
 
 ### Routes
 
-- [ ] T084 [US6] Criar `backend/app/routes/comments.py` (`GET/POST /api/v1/tasks/{id}/comments` —
+- [x] T084 [US6] Criar `backend/app/routes/comments.py` (`GET/POST /api/v1/tasks/{id}/comments` —
   leitura via `require_workspace_member`, escrita via `require_task_participant`) e registrar o
   router em `backend/app/main.py` (depende de T083, T077)
 
