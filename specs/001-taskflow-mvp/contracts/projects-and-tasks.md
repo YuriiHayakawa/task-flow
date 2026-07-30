@@ -174,9 +174,21 @@ exclusivamente por esses campos (opcionais).
 ### `GET /api/v1/tasks/{task_id}/members`
 
 - **Auth**: `require_workspace_member` (visibilidade — qualquer membro do workspace
-  pode ver quem participa, mesmo sem participar).
+  pode ver quem participa, mesmo sem participar); para tarefa pessoal, somente o
+  próprio criador (mesma regra de visibilidade de `GET /tasks/{task_id}`).
 - **Respostas**: `200` (lista de `TaskMemberRead`, **incluindo o responsável** como
   participante implícito — FR-033).
+- **Tarefa pessoal (esclarecimento — FR-031 vs. FR-033, sem conflito entre si)**: FR-031
+  proíbe participantes **adicionais** (explícitos, persistidos), não o conceito de
+  participante em si; FR-033 ("o responsável de **uma tarefa** MUST ser automaticamente
+  considerado participante dela") aplica-se a toda tarefa, sem qualificador de workspace
+  — incluindo a pessoal, onde responsável = criador (`data-model.md`, tabela de
+  invariantes de tarefa pessoal). Portanto, para uma tarefa pessoal, este endpoint
+  retorna `200` com uma lista contendo **apenas o criador**, como participante implícito
+  (`added_at: null`) — nunca um erro, e nunca uma lista vazia. Isso não contradiz FR-031:
+  **nenhuma linha é persistida em `task_members`** para tarefa pessoal em nenhuma
+  circunstância; `POST`/`DELETE` neste recurso continuam retornando `400` para tarefa
+  pessoal, exatamente como já documentado abaixo.
 
 ### `POST /api/v1/tasks/{task_id}/members`
 

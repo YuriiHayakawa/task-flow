@@ -43,6 +43,10 @@ class TaskRepository:
         self.db.flush()
         return task
 
+    def delete(self, task: Task) -> None:
+        self.db.delete(task)
+        self.db.flush()
+
     def list_active_by_assignee_in_workspace(
         self, workspace_id: uuid.UUID, assignee_id: uuid.UUID
     ) -> list[Task]:

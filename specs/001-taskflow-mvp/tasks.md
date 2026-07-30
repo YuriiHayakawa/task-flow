@@ -467,7 +467,7 @@ mesmo workspace e confirmar que ele passa a constar na lista.
 
 ### Testes
 
-- [ ] T074 [P] [US5] Testes de integração de `TaskMember` — permissões (criador/responsável/Owner/
+- [x] T074 [P] [US5] Testes de integração de `TaskMember` — permissões (criador/responsável/Owner/
   Admin apenas), invariantes (tarefa pessoal rejeita participante; não-membro do workspace rejeitado;
   responsável é participante implícito; remoção de participante não apaga dados relacionados;
   responsável não removível sem reatribuição prévia) em
@@ -475,26 +475,26 @@ mesmo workspace e confirmar que ele passa a constar na lista.
 
 ### Schemas & Repositories
 
-- [ ] T075 [P] [US5] Criar `backend/app/schemas/task_member.py` (`TaskMemberCreate`,
+- [x] T075 [P] [US5] Criar `backend/app/schemas/task_member.py` (`TaskMemberCreate`,
   `TaskMemberRead`) e `backend/app/repositories/task_member_repository.py` (`create`, `delete`,
   `list_by_task` unindo responsável implícito + registros de `TaskMember`, `exists`) (depende de
   T022)
 
 ### Services & Dependencies
 
-- [ ] T076 [US5] Criar `backend/app/services/task_member_service.py` (rejeita tarefa pessoal; valida
+- [x] T076 [US5] Criar `backend/app/services/task_member_service.py` (rejeita tarefa pessoal; valida
   que o usuário é membro do workspace da tarefa; rejeita duplicidade; bloqueia remoção do
   responsável) (depende de T075, T059)
-- [ ] T077 [US5] Criar `backend/app/dependencies/task_authorization.py`
+- [x] T077 [US5] Criar `backend/app/dependencies/task_authorization.py`
   (`require_task_participant`, `require_task_editor`, `require_task_delete` — matriz de
   "Visibilidade versus Participação" de `plan.md`/`research.md` #8) (depende de T075, T062, T045)
 
 ### Routes & Integração
 
-- [ ] T078 [US5] Criar `backend/app/routes/task_members.py` (`GET/POST
+- [x] T078 [US5] Criar `backend/app/routes/task_members.py` (`GET/POST
   /api/v1/tasks/{id}/members`, `DELETE /api/v1/tasks/{id}/members/{user_id}`) e registrar o router
   em `backend/app/main.py` (depende de T076, T077)
-- [ ] T079 [US5] Substituir a checagem de autorização simplificada de `PATCH/DELETE
+- [x] T079 [US5] Substituir a checagem de autorização simplificada de `PATCH/DELETE
   /api/v1/tasks/{id}` (US1) por `require_task_editor`/`require_task_delete` em
   `backend/app/routes/tasks.py` (depende de T077, T078)
 
@@ -513,27 +513,27 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T080 [P] [US6] Testes de integração de comentários (criação, conteúdo vazio rejeitado, criação
+- [x] T080 [P] [US6] Testes de integração de comentários (criação, conteúdo vazio rejeitado, criação
   restrita a participantes, listagem visível a todo membro do workspace) em
   `backend/tests/integration/test_comments.py`
 
 ### Schemas & Repositories
 
-- [ ] T081 [P] [US6] Criar `backend/app/schemas/comment.py` (`CommentCreate`, `CommentRead`) e
+- [x] T081 [P] [US6] Criar `backend/app/schemas/comment.py` (`CommentCreate`, `CommentRead`) e
   `backend/app/repositories/comment_repository.py` (`create`, `list_by_task`) (depende de T023)
-- [ ] T082 [P] [US6] Criar `backend/app/repositories/notification_repository.py` (`create`,
+- [x] T082 [P] [US6] Criar `backend/app/repositories/notification_repository.py` (`create`,
   `list_by_recipient`, `mark_read` — primeiro consumidor é `NEW_COMMENT`, estendido na US11) (depende
   de T027)
 
 ### Services
 
-- [ ] T083 [US6] Criar `backend/app/services/comment_service.py` (rejeita conteúdo vazio; cria
+- [x] T083 [US6] Criar `backend/app/services/comment_service.py` (rejeita conteúdo vazio; cria
   comentário + notificação `NEW_COMMENT` para os demais participantes na mesma transação —
   `research.md` #19) (depende de T081, T082, T076)
 
 ### Routes
 
-- [ ] T084 [US6] Criar `backend/app/routes/comments.py` (`GET/POST /api/v1/tasks/{id}/comments` —
+- [x] T084 [US6] Criar `backend/app/routes/comments.py` (`GET/POST /api/v1/tasks/{id}/comments` —
   leitura via `require_workspace_member`, escrita via `require_task_participant`) e registrar o
   router em `backend/app/main.py` (depende de T083, T077)
 
@@ -552,22 +552,22 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T085 [P] [US7] Testes de integração de perfil (visualizar, editar nome, editar e-mail,
+- [x] T085 [P] [US7] Testes de integração de perfil (visualizar, editar nome, editar e-mail,
   unicidade case-insensitive no cadastro e na atualização) em
   `backend/tests/integration/test_profile.py`
 
 ### Schemas & Repositories
 
-- [ ] T086 [US7] Estender `backend/app/schemas/user.py` com `UserUpdate` (`name?`, `email?` — rejeita
+- [x] T086 [US7] Estender `backend/app/schemas/user.py` com `UserUpdate` (`name?`, `email?` — rejeita
   campos fora do MVP como senha/foto) e `backend/app/repositories/user_repository.py` com `update` e
   `email_taken(email, exclude_user_id)` (case-insensitive via índice `lower(email)`) (depende de
   T040, T042)
 
 ### Services & Routes
 
-- [ ] T087 [US7] Criar `backend/app/services/user_service.py` (`get_me`, `update_me` — normaliza
+- [x] T087 [US7] Criar `backend/app/services/user_service.py` (`get_me`, `update_me` — normaliza
   e-mail para lowercase, valida unicidade antes de persistir) (depende de T086)
-- [ ] T088 [US7] Criar `backend/app/routes/users.py` (`GET/PATCH /api/v1/users/me`) e registrar o
+- [x] T088 [US7] Criar `backend/app/routes/users.py` (`GET/PATCH /api/v1/users/me`) e registrar o
   router em `backend/app/main.py` (depende de T087, T034)
 
 **Checkpoint**: US1–US7 funcionam de forma independente.

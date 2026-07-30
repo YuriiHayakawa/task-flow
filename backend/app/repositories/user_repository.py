@@ -25,3 +25,16 @@ class UserRepository:
 
     def get_by_id(self, user_id: uuid.UUID) -> User | None:
         return self.db.get(User, user_id)
+
+    def update(self, user: User) -> User:
+        self.db.flush()
+        return user
+
+    def email_taken(self, email: str, exclude_user_id: uuid.UUID) -> bool:
+        """Comparação case-insensitive (research.md #10), excluindo o
+        próprio usuário — sem isso, ninguém conseguiria salvar seu perfil
+        mudando só o nome, ou reenviar o próprio e-mail sem alterá-lo."""
+        stmt = select(User.id).where(
+            func.lower(User.email) == email.lower(), User.id != exclude_user_id
+        )
+        return self.db.scalars(stmt).first() is not None

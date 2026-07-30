@@ -1,7 +1,14 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+def _validate_email_shape(value: str) -> str:
+    value = value.strip()
+    if "@" not in value or value.startswith("@") or value.endswith("@"):
+        raise ValueError("E-mail inválido.")
+    return value
 
 
 class UserCreate(BaseModel):
@@ -14,10 +21,36 @@ class UserCreate(BaseModel):
     @field_validator("email")
     @classmethod
     def validate_email_shape(cls, value: str) -> str:
-        value = value.strip()
-        if "@" not in value or value.startswith("@") or value.endswith("@"):
-            raise ValueError("E-mail inválido.")
-        return value
+        return _validate_email_shape(value)
+
+
+class UserUpdate(BaseModel):
+    """Corpo de `PATCH /api/v1/users/me` (contracts/auth-and-users.md).
+
+    `extra="forbid"` é uma exceção DELIBERADA ao padrão do resto do projeto
+    (que ignora campos desconhecidos, ex.: `ProjectCreate`/`CommentCreate`)
+    — exigência literal do contrato: "campos não reconhecidos são
+    rejeitados com 422, não silenciosamente ignorados" (FR-054 — senha,
+    foto e exclusão de conta MUST NOT ser aceitas por este endpoint)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    email: str | None = Field(default=None, min_length=3, max_length=255)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_shape(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        return _validate_email_shape(value)
+
+    @model_validator(mode="after")
+    def at_least_one_field_provided(self) -> "UserUpdate":
+        """Contrato: "ambos opcionais, ao menos um obrigatório"."""
+        if not self.model_fields_set:
+            raise ValueError("Informe ao menos um campo para atualizar (name ou email).")
+        return self
 
 
 class UserRead(BaseModel):
