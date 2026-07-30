@@ -552,22 +552,22 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T085 [P] [US7] Testes de integração de perfil (visualizar, editar nome, editar e-mail,
+- [x] T085 [P] [US7] Testes de integração de perfil (visualizar, editar nome, editar e-mail,
   unicidade case-insensitive no cadastro e na atualização) em
   `backend/tests/integration/test_profile.py`
 
 ### Schemas & Repositories
 
-- [ ] T086 [US7] Estender `backend/app/schemas/user.py` com `UserUpdate` (`name?`, `email?` — rejeita
+- [x] T086 [US7] Estender `backend/app/schemas/user.py` com `UserUpdate` (`name?`, `email?` — rejeita
   campos fora do MVP como senha/foto) e `backend/app/repositories/user_repository.py` com `update` e
   `email_taken(email, exclude_user_id)` (case-insensitive via índice `lower(email)`) (depende de
   T040, T042)
 
 ### Services & Routes
 
-- [ ] T087 [US7] Criar `backend/app/services/user_service.py` (`get_me`, `update_me` — normaliza
+- [x] T087 [US7] Criar `backend/app/services/user_service.py` (`get_me`, `update_me` — normaliza
   e-mail para lowercase, valida unicidade antes de persistir) (depende de T086)
-- [ ] T088 [US7] Criar `backend/app/routes/users.py` (`GET/PATCH /api/v1/users/me`) e registrar o
+- [x] T088 [US7] Criar `backend/app/routes/users.py` (`GET/PATCH /api/v1/users/me`) e registrar o
   router em `backend/app/main.py` (depende de T087, T034)
 
 **Checkpoint**: US1–US7 funcionam de forma independente.

@@ -5,6 +5,7 @@ Cobre: FR-027 a FR-029, FR-039, contracts/collaboration.md
 (`GET/POST /tasks/{task_id}/comments`)."""
 
 import uuid
+from datetime import timedelta
 
 import pytest
 
@@ -33,14 +34,29 @@ def test_list_comments_empty(client, make_user, make_workspace, make_task, auth_
 
 
 def test_list_comments_multiple_in_order(
-    client, make_user, make_workspace, make_task, auth_headers
+    client, make_user, make_workspace, make_task, auth_headers, db_session
 ):
+    """`created_at` usa `server_default=func.now()` — dentro de uma única
+    transação (o `client` deste teste compartilha uma só com `db_session`),
+    `now()` do Postgres é FIXO por transação, então os dois comentários
+    receberiam o MESMO timestamp se não forçados aqui a serem distintos
+    (o desempate por `id` é uma UUID aleatória, sem relação com a ordem de
+    criação — em produção, requisições separadas têm transações/timestamps
+    distintos; isso é uma particularidade só deste padrão de teste)."""
     owner = make_user()
     workspace = make_workspace(owner=owner)
     task = make_task(creator=owner, workspace=workspace)
     headers = auth_headers(owner)
-    client.post(f"/api/v1/tasks/{task.id}/comments", json={"content": "Primeiro"}, headers=headers)
-    client.post(f"/api/v1/tasks/{task.id}/comments", json={"content": "Segundo"}, headers=headers)
+    response_1 = client.post(
+        f"/api/v1/tasks/{task.id}/comments", json={"content": "Primeiro"}, headers=headers
+    )
+    response_2 = client.post(
+        f"/api/v1/tasks/{task.id}/comments", json={"content": "Segundo"}, headers=headers
+    )
+    comment_1 = db_session.get(Comment, uuid.UUID(response_1.json()["id"]))
+    comment_2 = db_session.get(Comment, uuid.UUID(response_2.json()["id"]))
+    comment_1.created_at = comment_1.created_at - timedelta(seconds=1)
+    db_session.flush()
 
     response = client.get(f"/api/v1/tasks/{task.id}/comments", headers=headers)
 
