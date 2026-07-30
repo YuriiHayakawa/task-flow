@@ -586,12 +586,12 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T089 [P] [US8] Testes de integração de busca/filtros/ordenação combinados, incl. resultado
+- [x] T089 [P] [US8] Testes de integração de busca/filtros/ordenação combinados, incl. resultado
   vazio sem erro, em `backend/tests/integration/test_task_search.py`
 
 ### Repositories & Schemas
 
-- [ ] T090 [US8] Estender `backend/app/repositories/task_repository.py` com busca por título
+- [x] T090 [US8] Estender `backend/app/repositories/task_repository.py` com busca por título
   (`ILIKE`), filtros combináveis (status, prioridade, workspace, projeto, responsável), ordenação
   (`due_date`, `priority`, `created_at`) e paginação — consulta única parametrizada evitando N+1 — e
   estender `backend/app/schemas/task.py` com os parâmetros de consulta e o envelope de resposta
@@ -599,7 +599,7 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Routes
 
-- [ ] T091 [US8] Estender `GET /api/v1/tasks` em `backend/app/routes/tasks.py` com os novos
+- [x] T091 [US8] Estender `GET /api/v1/tasks` em `backend/app/routes/tasks.py` com os novos
   parâmetros de query (depende de T090)
 
 **Checkpoint**: US1–US8 funcionam de forma independente.

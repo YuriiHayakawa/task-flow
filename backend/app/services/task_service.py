@@ -7,7 +7,7 @@ from app.models.task import Task
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
-from app.schemas.task import TaskCreate, TaskUpdate
+from app.schemas.task import TaskCreate, TaskSearchParams, TaskUpdate
 
 
 class TaskService:
@@ -112,8 +112,25 @@ class TaskService:
             )
         return data.assignee_id
 
-    def list_personal_tasks(self, creator_id: uuid.UUID) -> list[Task]:
-        return self.task_repository.list_personal_by_creator(creator_id)
+    def search(self, user_id: uuid.UUID, params: TaskSearchParams) -> tuple[list[Task], int]:
+        """FR-055 a FR-059 (US8): endpoint central de listagem — tarefas
+        pessoais do usuário + tarefas de todos os workspaces dos quais
+        participa (mesma união já usada no dashboard desde a Fase 5/T065)."""
+        workspace_ids = self.workspace_member_repository.list_workspace_ids_for_user(user_id)
+        return self.task_repository.search(
+            creator_id=user_id,
+            workspace_ids=workspace_ids,
+            search=params.search,
+            status=params.status,
+            priority=params.priority,
+            workspace_id=params.workspace_id,
+            project_id=params.project_id,
+            assignee_id=params.assignee_id,
+            sort_by=params.sort_by,
+            sort_order=params.sort_order,
+            page=params.page,
+            page_size=params.page_size,
+        )
 
     def delete(self, task: Task) -> None:
         """FR-005 (US1)/refinamento #7 (US5): a autorização (criador, ou
