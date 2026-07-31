@@ -3,11 +3,13 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
+from app.core.logging import get_logger
 from app.enums.notification_type import NotificationType
 from app.enums.task_status import TaskStatus
 from app.models.notification import Notification
 from app.models.task import Task
 from app.models.task_history_entry import TaskHistoryEntry
+from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_history_repository import TaskHistoryRepository
@@ -15,6 +17,9 @@ from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.task import TaskCreate, TaskSearchParams, TaskUpdate
+from app.utils import file_storage
+
+logger = get_logger(__name__)
 
 _TASK_CHANGED_TRACKED_FIELDS = ("status", "priority", "due_date", "assignee_id")
 
@@ -40,6 +45,7 @@ class TaskService:
         task_member_repository: TaskMemberRepository,
         notification_repository: NotificationRepository,
         task_history_repository: TaskHistoryRepository,
+        attachment_repository: AttachmentRepository,
     ) -> None:
         self.task_repository = task_repository
         self.project_repository = project_repository
@@ -47,6 +53,7 @@ class TaskService:
         self.task_member_repository = task_member_repository
         self.notification_repository = notification_repository
         self.task_history_repository = task_history_repository
+        self.attachment_repository = attachment_repository
         self.db = task_repository.db
 
     def create(self, data: TaskCreate, creator_id: uuid.UUID) -> Task:
@@ -171,9 +178,29 @@ class TaskService:
         na dependency da rota; aqui só a exclusão em si. Cascade de banco
         (`ON DELETE CASCADE`, já definido nas migrações da Fase 2) remove
         `TaskMember`/`Comment`/`ChecklistItem`/`Attachment`/
-        `TaskHistoryEntry`/`Notification` relacionados."""
+        `TaskHistoryEntry`/`Notification` relacionados.
+
+        Fase 16 (hardening) — exclusão controlada de anexos (research.md
+        #12): coleta os `storage_path` de todos os anexos da tarefa ANTES
+        do cascade; só depois do `commit()` bem-sucedido remove os arquivos
+        físicos — se a remoção física de algum falhar, loga `ERROR` sem
+        falhar a resposta (o estado autoritativo, o banco, já está correto)."""
+        task_id = task.id
+        storage_paths = self.attachment_repository.list_storage_paths_by_task(task_id)
+
         self.task_repository.delete(task)
         self.db.commit()
+
+        for storage_path in storage_paths:
+            try:
+                file_storage.delete_file(storage_path)
+            except OSError:
+                logger.error(
+                    "Falha ao remover arquivo físico de anexo após exclusão de tarefa: "
+                    "task_id=%s storage_path=%s",
+                    task_id,
+                    storage_path,
+                )
 
     def update(self, task: Task, data: TaskUpdate, changed_by: uuid.UUID) -> Task:
         """`status = DONE` seta `completed_at`; reabrir limpa (FR-011).

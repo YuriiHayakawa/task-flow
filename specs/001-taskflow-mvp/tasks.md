@@ -204,9 +204,11 @@ depende de `Workspace`/`Project` já existirem (FKs), por isso **todas** as migr
   da Fase 2). DDL gerado conferido linha a linha contra `data-model.md` (tabelas, FKs, índices,
   CHECKs). **Aplicação real (`alembic upgrade head` contra um banco vivo) continua pendente** e
   MUST ser executada assim que houver PostgreSQL local ou via Docker (depende de T028-T031)
-- [ ] T032b _(task de acompanhamento, não prevista originalmente)_ Executar `alembic upgrade head`
+- [X] T032b _(task de acompanhamento, não prevista originalmente)_ Executar `alembic upgrade head`
   contra um PostgreSQL real (local ou via `docker compose up db`) e validar o schema resultante
-  contra `data-model.md`, confirmando que a saída bate com o DDL revisado em T032
+  contra `data-model.md`, confirmando que a saída bate com o DDL revisado em T032 — confirmado
+  empiricamente na Fase 16 (hardening): as 4 migrações rodaram `upgrade`/`downgrade` com sucesso em
+  todas as execuções de teste ao longo de todo o projeto (centenas de vezes), contra PostgreSQL real
 
 ### Dependencies & Entrypoint
 
@@ -809,20 +811,29 @@ quais não é membro.
 
 ### Cobertura
 
-- [ ] T115 Executar toda a suíte `pytest` do backend e revisar cobertura (`pytest --cov=app`),
-  fechando qualquer lacuna nas regras críticas listadas em `plan.md` (seção Testes)
-- [ ] T116 [P] Teste de integração dedicado do cálculo de "hoje"/"atrasada"/"vencendo hoje" usando
+- [X] T115 Executar toda a suíte `pytest` do backend e revisar cobertura (`pytest --cov=app`),
+  fechando qualquer lacuna nas regras críticas listadas em `plan.md` (seção Testes) — cobertura final
+  99%+; achado crítico fechado: limpeza de arquivos físicos de anexos ao excluir tarefa/workspace
+  (nunca implementada, documentada como dívida técnica na Fase 12) implementada e testada nesta
+  fase; lacunas de teste fechadas: atomicidade real de `TaskService.update` e de
+  `NotificationService.generate_due_soon_notifications` (rollback de falha parcial), casos de erro
+  de `WorkspaceMemberService`, reatribuição com `assignee_id: null` explícito
+- [X] T116 [P] Teste de integração dedicado do cálculo de "hoje"/"atrasada"/"vencendo hoje" usando
   `APP_TIMEZONE` próximo à virada de dia UTC vs. `America/Sao_Paulo` em
   `backend/tests/integration/test_timezone_calculations.py`
 
 ### Revisões
 
-- [ ] T117 [P] Revisão de segurança: nenhuma rota protegida sem dependency de autorização correta;
-  nenhum dado sensível (senha, token) em logs ou respostas (Constitution X/XI)
-- [ ] T118 [P] Revisão do Swagger/OpenAPI gerado (`/docs`): todo endpoint com `response_model`
-  explícito e schemas sem `password_hash` (Constitution VII)
-- [ ] T119 [P] Revisão das 4 migrações Alembic (`0001`-`0004`): `downgrade()` completo e reversível
-  para cada uma, sem alteração manual de schema fora do fluxo de migração (Constitution VI)
+- [X] T117 [P] Revisão de segurança: nenhuma rota protegida sem dependency de autorização correta;
+  nenhum dado sensível (senha, token) em logs ou respostas (Constitution X/XI) — todas as 23 rotas
+  revisadas individualmente, nenhum achado
+- [X] T118 [P] Revisão do Swagger/OpenAPI gerado (`/docs`): todo endpoint com `response_model`
+  explícito e schemas sem `password_hash` (Constitution VII) — achado corrigido: `PATCH
+  /notifications/read-all` não tinha `response_model` explícito
+- [X] T119 [P] Revisão das 4 migrações Alembic (`0001`-`0004`): `downgrade()` completo e reversível
+  para cada uma, sem alteração manual de schema fora do fluxo de migração (Constitution VI) — revisão
+  linha a linha confirmando reversibilidade completa; execução real confirmada centenas de vezes ao
+  longo do projeto (ver T032b)
 
 **Checkpoint**: backend completo, testado e revisado — pronto para o frontend.
 

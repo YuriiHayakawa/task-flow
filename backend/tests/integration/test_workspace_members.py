@@ -299,3 +299,35 @@ def test_remove_member_not_blocked_by_completed_task(
     )
 
     assert response.status_code == 204
+
+
+# --- Fase 16 (hardening): lacunas de cobertura da auditoria ---------------------
+
+
+def test_add_member_nonexistent_user_rejected(client, make_user, make_workspace, auth_headers):
+    import uuid
+
+    owner = make_user()
+    workspace = make_workspace(owner=owner)
+
+    response = client.post(
+        f"/api/v1/workspaces/{workspace.id}/members",
+        json={"user_id": str(uuid.uuid4())},
+        headers=auth_headers(owner),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
+
+
+def test_remove_member_nonexistent_returns_404(client, make_user, make_workspace, auth_headers):
+    import uuid
+
+    owner = make_user()
+    workspace = make_workspace(owner=owner)
+
+    response = client.delete(
+        f"/api/v1/workspaces/{workspace.id}/members/{uuid.uuid4()}", headers=auth_headers(owner)
+    )
+
+    assert response.status_code == 404
