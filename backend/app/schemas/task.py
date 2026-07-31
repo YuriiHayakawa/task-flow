@@ -4,15 +4,15 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums.task_priority import TaskPriority
+from app.enums.task_sort_by import TaskSortBy
+from app.enums.task_sort_order import TaskSortOrder
 from app.enums.task_status import TaskStatus
 
 
 class TaskCreate(BaseModel):
-    """Corpo de `POST /api/v1/tasks` (contracts/projects-and-tasks.md).
-
-    `workspace_id`/`project_id` já existem no contrato completo, mas nesta fase
-    (US1) só o caminho de tarefa pessoal (ambos ausentes) é processado pelo
-    `TaskService` — a validação de workspace/projeto chega na US4 (T072)."""
+    """Corpo de `POST /api/v1/tasks` (contracts/projects-and-tasks.md) — cobre
+    tarefa pessoal, de workspace direto, ou de projeto (derivação/validação
+    completa em `TaskService.create`, US1/US4)."""
 
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
@@ -39,6 +39,24 @@ class TaskUpdate(BaseModel):
     assignee_id: uuid.UUID | None = None
     workspace_id: uuid.UUID | None = None
     project_id: uuid.UUID | None = None
+
+
+class TaskSearchParams(BaseModel):
+    """Query params de `GET /api/v1/tasks` (contracts/projects-and-tasks.md,
+    US8) — todos combináveis: busca por título + filtros + ordenação +
+    paginação real (`_conventions.md`: `page` default 1, `page_size` default
+    20, máximo 100)."""
+
+    search: str | None = Field(default=None, max_length=255)
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    workspace_id: uuid.UUID | None = None
+    project_id: uuid.UUID | None = None
+    assignee_id: uuid.UUID | None = None
+    sort_by: TaskSortBy = TaskSortBy.CREATED_AT
+    sort_order: TaskSortOrder = TaskSortOrder.DESC
+    page: int = Field(default=1, ge=1)
+    page_size: int = Field(default=20, ge=1, le=100)
 
 
 class TaskRead(BaseModel):

@@ -37,13 +37,6 @@ class FakeTaskRepository:
     def get_by_id(self, task_id: uuid.UUID) -> Task | None:
         return self.tasks.get(task_id)
 
-    def list_personal_by_creator(self, creator_id: uuid.UUID) -> list[Task]:
-        return [
-            task
-            for task in self.tasks.values()
-            if task.creator_id == creator_id and task.workspace_id is None
-        ]
-
     def update(self, task: Task) -> Task:
         return task
 

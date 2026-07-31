@@ -7,6 +7,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.routes.auth import router as auth_router
+from app.routes.checklist import router as checklist_router
 from app.routes.comments import router as comments_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.projects import router as projects_router
@@ -43,4 +44,5 @@ api_router.include_router(projects_router)
 api_router.include_router(task_members_router)
 api_router.include_router(comments_router)
 api_router.include_router(users_router)
+api_router.include_router(checklist_router)
 app.include_router(api_router)

@@ -2,9 +2,12 @@ import uuid
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import ColumnElement, and_, false, func, or_, select
+from sqlalchemy import ColumnElement, and_, case, false, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.enums.task_priority import TaskPriority
+from app.enums.task_sort_by import TaskSortBy
+from app.enums.task_sort_order import TaskSortOrder
 from app.enums.task_status import TaskStatus
 from app.models.task import Task
 
@@ -28,16 +31,6 @@ class TaskRepository:
 
     def get_by_id(self, task_id: uuid.UUID) -> Task | None:
         return self.db.get(Task, task_id)
-
-    def list_personal_by_creator(self, creator_id: uuid.UUID) -> list[Task]:
-        """Tarefas pessoais (`workspace_id IS NULL`) do próprio criador — nunca
-        tarefas pessoais de terceiros (FR-059)."""
-        stmt = (
-            select(Task)
-            .where(Task.creator_id == creator_id, Task.workspace_id.is_(None))
-            .order_by(Task.created_at.desc())
-        )
-        return list(self.db.scalars(stmt))
 
     def update(self, task: Task) -> Task:
         self.db.flush()
@@ -104,3 +97,83 @@ class TaskRepository:
             "overdue": row.overdue,
             "due_today": row.due_today,
         }
+
+    def search(
+        self,
+        *,
+        creator_id: uuid.UUID,
+        workspace_ids: Sequence[uuid.UUID],
+        search: str | None,
+        status: TaskStatus | None,
+        priority: TaskPriority | None,
+        workspace_id: uuid.UUID | None,
+        project_id: uuid.UUID | None,
+        assignee_id: uuid.UUID | None,
+        sort_by: TaskSortBy,
+        sort_order: TaskSortOrder,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Task], int]:
+        """FR-055 a FR-059 (US8): endpoint central de listagem — mesma
+        visibilidade (`visible`) já usada em `count_by_status` (tarefas
+        pessoais do próprio usuário + tarefas dos workspaces em
+        `workspace_ids`), com busca/filtros/ordenação/paginação combináveis
+        numa única consulta parametrizada (evita N+1). Os filtros adicionais
+        (`workspace_id`/`project_id`/`assignee_id`) são aplicados em `AND`
+        sobre `visible` — filtrar por um workspace do qual o usuário não é
+        membro simplesmente não retorna nada, sem precisar de uma checagem
+        de autorização separada (FR-059: nunca vaza tarefas fora da
+        visibilidade já garantida).
+
+        `priority` é armazenado como `VARCHAR` simples (`native_enum=False`,
+        sem ordem nativa no banco) — ordenar por ele com um `ORDER BY`
+        ingênuo seria alfabético (`HIGH, LOW, MEDIUM, URGENT`), não
+        semântico. Por isso usa uma expressão `CASE` mapeando para a ordem
+        `LOW < MEDIUM < HIGH < URGENT` (`data-model.md`), decisão
+        documentada aqui por não haver essa definição explícita em nenhum
+        documento."""
+        visible = or_(
+            and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
+            Task.workspace_id.in_(workspace_ids) if workspace_ids else false(),
+        )
+
+        conditions = [visible]
+        if search:
+            conditions.append(Task.title.ilike(f"%{search}%"))
+        if status is not None:
+            conditions.append(Task.status == status)
+        if priority is not None:
+            conditions.append(Task.priority == priority)
+        if workspace_id is not None:
+            conditions.append(Task.workspace_id == workspace_id)
+        if project_id is not None:
+            conditions.append(Task.project_id == project_id)
+        if assignee_id is not None:
+            conditions.append(Task.assignee_id == assignee_id)
+
+        where_clause = and_(*conditions)
+
+        priority_rank = case(
+            (Task.priority == TaskPriority.LOW, 1),
+            (Task.priority == TaskPriority.MEDIUM, 2),
+            (Task.priority == TaskPriority.HIGH, 3),
+            (Task.priority == TaskPriority.URGENT, 4),
+        )
+        sort_column = {
+            TaskSortBy.DUE_DATE: Task.due_date,
+            TaskSortBy.PRIORITY: priority_rank,
+            TaskSortBy.CREATED_AT: Task.created_at,
+        }[sort_by]
+        order_expr = sort_column.asc() if sort_order == TaskSortOrder.ASC else sort_column.desc()
+
+        total = self.db.scalar(select(func.count()).select_from(Task).where(where_clause)) or 0
+
+        stmt = (
+            select(Task)
+            .where(where_clause)
+            .order_by(order_expr, Task.id.asc())  # desempate determinístico
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        items = list(self.db.scalars(stmt))
+        return items, total

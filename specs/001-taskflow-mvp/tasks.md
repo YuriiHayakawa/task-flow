@@ -586,12 +586,12 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T089 [P] [US8] Testes de integração de busca/filtros/ordenação combinados, incl. resultado
+- [x] T089 [P] [US8] Testes de integração de busca/filtros/ordenação combinados, incl. resultado
   vazio sem erro, em `backend/tests/integration/test_task_search.py`
 
 ### Repositories & Schemas
 
-- [ ] T090 [US8] Estender `backend/app/repositories/task_repository.py` com busca por título
+- [x] T090 [US8] Estender `backend/app/repositories/task_repository.py` com busca por título
   (`ILIKE`), filtros combináveis (status, prioridade, workspace, projeto, responsável), ordenação
   (`due_date`, `priority`, `created_at`) e paginação — consulta única parametrizada evitando N+1 — e
   estender `backend/app/schemas/task.py` com os parâmetros de consulta e o envelope de resposta
@@ -599,7 +599,7 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Routes
 
-- [ ] T091 [US8] Estender `GET /api/v1/tasks` em `backend/app/routes/tasks.py` com os novos
+- [x] T091 [US8] Estender `GET /api/v1/tasks` em `backend/app/routes/tasks.py` com os novos
   parâmetros de query (depende de T090)
 
 **Checkpoint**: US1–US8 funcionam de forma independente.
@@ -616,21 +616,21 @@ tarefa/autor; conteúdo vazio é rejeitado.
 
 ### Testes
 
-- [ ] T092 [P] [US9] Testes de integração de checklist (criar, marcar concluído/pendente, remover,
+- [x] T092 [P] [US9] Testes de integração de checklist (criar, marcar concluído/pendente, remover,
   restrito a participantes) em `backend/tests/integration/test_checklist.py`
 
 ### Schemas & Repositories
 
-- [ ] T093 [P] [US9] Criar `backend/app/schemas/checklist_item.py` (`ChecklistItemCreate`,
+- [x] T093 [P] [US9] Criar `backend/app/schemas/checklist_item.py` (`ChecklistItemCreate`,
   `ChecklistItemUpdate` — só `is_done`, `ChecklistItemRead`) e
   `backend/app/repositories/checklist_item_repository.py` (`create`, `list_by_task`, `update`,
   `delete`) (depende de T024)
 
 ### Services & Routes
 
-- [ ] T094 [US9] Criar `backend/app/services/checklist_service.py` (`is_done: true` seta
+- [x] T094 [US9] Criar `backend/app/services/checklist_service.py` (`is_done: true` seta
   `completed_at`; `false` limpa) (depende de T093)
-- [ ] T095 [US9] Criar `backend/app/routes/checklist.py` (`GET/POST /api/v1/tasks/{id}/checklist`,
+- [x] T095 [US9] Criar `backend/app/routes/checklist.py` (`GET/POST /api/v1/tasks/{id}/checklist`,
   `PATCH/DELETE .../checklist/{item_id}` — leitura via `require_workspace_member`, escrita via
   `require_task_participant`) e registrar o router em `backend/app/main.py` (depende de T094, T077)
 

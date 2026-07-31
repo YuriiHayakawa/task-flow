@@ -599,11 +599,21 @@ def test_task_members_endpoint_still_works(
     assert response.status_code == 200
 
 
-def test_get_tasks_list_still_restricted_to_personal(client, make_user, make_task, auth_headers):
+def test_get_tasks_list_combines_personal_and_workspace_tasks(
+    client, make_user, make_workspace, add_workspace_member, make_task, auth_headers
+):
+    """Fase 10 (US8/T091) ativou a união de `GET /tasks` — este teste
+    substitui o antigo regression-guard "permanece restrito a pessoal"
+    (Fase 8), cuja premissa deixou de ser verdadeira nesta fase."""
     user = make_user()
+    owner = make_user(email="owner-tasks-union@example.com")
+    workspace = make_workspace(owner=owner)
+    add_workspace_member(workspace=workspace, user=user)
     make_task(creator=user, title="Pessoal")
+    make_task(creator=owner, assignee=user, workspace=workspace, title="De workspace")
 
     response = client.get("/api/v1/tasks", headers=auth_headers(user))
 
     assert response.status_code == 200
-    assert len(response.json()["items"]) == 1
+    titles = {item["title"] for item in response.json()["items"]}
+    assert titles == {"Pessoal", "De workspace"}
