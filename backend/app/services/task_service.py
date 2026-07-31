@@ -1,19 +1,34 @@
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 
 from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
 from app.enums.notification_type import NotificationType
 from app.enums.task_status import TaskStatus
 from app.models.notification import Notification
 from app.models.task import Task
+from app.models.task_history_entry import TaskHistoryEntry
 from app.repositories.notification_repository import NotificationRepository
 from app.repositories.project_repository import ProjectRepository
+from app.repositories.task_history_repository import TaskHistoryRepository
 from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.task import TaskCreate, TaskSearchParams, TaskUpdate
 
 _TASK_CHANGED_TRACKED_FIELDS = ("status", "priority", "due_date", "assignee_id")
+
+
+def _serialize_history_value(value: object) -> str | None:
+    """`TaskHistoryEntry.old_value`/`new_value` são `string` (data-model.md
+    — "representação textual"). Enums usam `.value` (ex.: `"DONE"`, não
+    `"TaskStatus.DONE"`); `date`/`UUID` já têm `str()` legível (ISO 8601,
+    UUID padrão)."""
+    if value is None:
+        return None
+    if isinstance(value, Enum):
+        return value.value
+    return str(value)
 
 
 class TaskService:
@@ -24,12 +39,14 @@ class TaskService:
         workspace_member_repository: WorkspaceMemberRepository,
         task_member_repository: TaskMemberRepository,
         notification_repository: NotificationRepository,
+        task_history_repository: TaskHistoryRepository,
     ) -> None:
         self.task_repository = task_repository
         self.project_repository = project_repository
         self.workspace_member_repository = workspace_member_repository
         self.task_member_repository = task_member_repository
         self.notification_repository = notification_repository
+        self.task_history_repository = task_history_repository
         self.db = task_repository.db
 
     def create(self, data: TaskCreate, creator_id: uuid.UUID) -> Task:
@@ -180,9 +197,15 @@ class TaskService:
         `due_soon_notified_for` é resetado para `NULL` sempre que `due_date`
         muda de fato (research.md #2), independentemente do valor anterior.
 
-        Transação única: `task.update` + todas as `Notification` num único
-        `commit()`; qualquer exceção após o início das escritas reverte tudo
-        (mesmo padrão de `CommentService.create_comment`, Fase 8)."""
+        FR-041/T110 (US12): os mesmos campos rastreados para `TASK_CHANGED`
+        geram, cada um, uma `TaskHistoryEntry` (campo, valor anterior, novo
+        valor, autor) — inclusive em tarefa pessoal (histórico não depende
+        de haver outro participante, ao contrário da notificação).
+
+        Transação única: `task.update` + todas as `Notification` + todas as
+        `TaskHistoryEntry` num único `commit()`; qualquer exceção após o
+        início das escritas reverte tudo (mesmo padrão de
+        `CommentService.create_comment`, Fase 8)."""
         changes = data.model_dump(exclude_unset=True)
 
         if "workspace_id" in changes or "project_id" in changes:
@@ -213,11 +236,13 @@ class TaskService:
         if "due_date" in changes and changes["due_date"] != task.due_date:
             task.due_soon_notified_for = None
 
-        changed_tracked_fields = {
+        changed_tracked_fields = [
             field
             for field in _TASK_CHANGED_TRACKED_FIELDS
             if field in changes and changes[field] != getattr(task, field)
-        }
+        ]
+        old_values = {field: getattr(task, field) for field in changed_tracked_fields}
+
         notification_recipients: set[uuid.UUID] = set()
         if changed_tracked_fields:
             old_assignee_id = task.assignee_id
@@ -240,6 +265,15 @@ class TaskService:
                     message=f'A tarefa "{task.title}" foi atualizada.',
                 )
                 self.notification_repository.create(notification)
+            for field in changed_tracked_fields:
+                history_entry = TaskHistoryEntry(
+                    task_id=task.id,
+                    changed_by_id=changed_by,
+                    field_changed=field,
+                    old_value=_serialize_history_value(old_values[field]),
+                    new_value=_serialize_history_value(changes[field]),
+                )
+                self.task_history_repository.create(history_entry)
             self.db.commit()
         except Exception:
             self.db.rollback()
