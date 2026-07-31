@@ -747,22 +747,22 @@ de histórico com campo/valor anterior/novo valor/autor/data.
 
 ### Testes
 
-- [ ] T108 [P] [US12] Testes de integração de histórico (entrada criada para cada campo rastreado,
+- [x] T108 [P] [US12] Testes de integração de histórico (entrada criada para cada campo rastreado,
   ordem cronológica, reatribuição por remoção de membro aparece como alteração de responsável) em
   `backend/tests/integration/test_task_history.py`
 
 ### Schemas & Repositories
 
-- [ ] T109 [US12] Criar `backend/app/schemas/task_history.py` (`TaskHistoryEntryRead`) e
+- [x] T109 [US12] Criar `backend/app/schemas/task_history.py` (`TaskHistoryEntryRead`) e
   `backend/app/repositories/task_history_repository.py` (`create`, `list_by_task` ordenado por
   `changed_at`) (depende de T026)
 
 ### Integração & Routes
 
-- [ ] T110 [US12] Estender `backend/app/services/task_service.py` (`update`) para criar
+- [x] T110 [US12] Estender `backend/app/services/task_service.py` (`update`) para criar
   `TaskHistoryEntry` (campo alterado, valor anterior, novo valor, autor) na mesma transação da
   notificação `TASK_CHANGED` (US11) (depende de T106, T109)
-- [ ] T111 [US12] Criar `backend/app/routes/history.py` (`GET /api/v1/tasks/{id}/history` via
+- [x] T111 [US12] Criar `backend/app/routes/history.py` (`GET /api/v1/tasks/{id}/history` via
   `require_workspace_member`) e registrar o router em `backend/app/main.py` (depende de T109, T077)
 
 **Checkpoint**: US1–US12 funcionam de forma independente.
