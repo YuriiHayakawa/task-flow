@@ -38,3 +38,29 @@ class UserRepository:
             func.lower(User.email) == email.lower(), User.id != exclude_user_id
         )
         return self.db.scalars(stmt).first() is not None
+
+    def list_all(
+        self, *, is_active: bool | None, page: int, page_size: int
+    ) -> tuple[list[User], int]:
+        """FR-043 (US13): listagem paginada de toda a base de usuários da
+        plataforma (não amarrada a nenhum workspace). Paginação real
+        (`LIMIT`/`OFFSET` + `COUNT` separado) — mesmo padrão de
+        `TaskRepository.search` (US8): volume potencialmente grande, sem o
+        limite natural dos sub-recursos de uma única tarefa. Ordenado por
+        `created_at asc, id asc` (cadastro mais antigo primeiro; desempate
+        determinístico) — ordem não definida pelo contrato, decisão
+        documentada aqui."""
+        base_query = select(User)
+        count_query = select(func.count()).select_from(User)
+        if is_active is not None:
+            base_query = base_query.where(User.is_active == is_active)
+            count_query = count_query.where(User.is_active == is_active)
+
+        total = self.db.scalar(count_query) or 0
+        stmt = (
+            base_query.order_by(User.created_at.asc(), User.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        items = list(self.db.scalars(stmt))
+        return items, total
