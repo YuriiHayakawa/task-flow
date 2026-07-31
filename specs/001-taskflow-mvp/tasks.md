@@ -781,19 +781,19 @@ quais não é membro.
 
 ### Testes
 
-- [ ] T112 [P] [US13] Testes de integração de administração de usuários (listar, ativar/desativar,
+- [x] T112 [P] [US13] Testes de integração de administração de usuários (listar, ativar/desativar,
   ausência de acesso a workspace, incapacidade de editar tarefas/projetos/config de workspace) em
   `backend/tests/integration/test_admin.py`
 
 ### Schemas & Services
 
-- [ ] T113 [US13] Criar `backend/app/schemas/admin.py` (`UserStatusUpdate`, reaproveita `UserRead`
+- [x] T113 [US13] Criar `backend/app/schemas/admin.py` (`UserStatusUpdate`, reaproveita `UserRead`
   paginado) e `backend/app/services/admin_service.py` (`list_users`, `set_user_active` — sem
   qualquer acesso a `Workspace`/`Project`/`Task`) (depende de T040, T042)
 
 ### Routes
 
-- [ ] T114 [US13] Criar `backend/app/routes/admin.py` (`GET /api/v1/admin/users`,
+- [x] T114 [US13] Criar `backend/app/routes/admin.py` (`GET /api/v1/admin/users`,
   `PATCH /api/v1/admin/users/{id}/status` via `require_system_admin`) e registrar o router em
   `backend/app/main.py` (depende de T113, T034)
 

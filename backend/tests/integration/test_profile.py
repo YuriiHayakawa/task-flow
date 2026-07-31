@@ -227,10 +227,16 @@ def test_update_me_only_affects_own_account(client, make_user, auth_headers):
 # --- Regressão -----------------------------------------------------------------
 
 
-def test_no_admin_routes_in_openapi(client):
-    response = client.get("/openapi.json")
-    paths = response.json()["paths"]
-    assert not any("/admin" in path for path in paths)
+def test_admin_routes_now_exist_in_openapi(client, make_user, auth_headers):
+    """Fase 9 (T088): este teste originalmente confirmava que `/admin`
+    ainda NÃO existia (regra de não antecipar a Fase 15). Agora que a
+    Fase 15/US13 implementou o módulo, a premissa mudou — reescrito para
+    confirmar o oposto: o endpoint existe e responde."""
+    admin = make_user(email="admin-openapi-regression@example.com", is_system_admin=True)
+
+    response = client.get("/api/v1/admin/users", headers=auth_headers(admin))
+
+    assert response.status_code == 200
 
 
 def test_task_members_endpoint_still_works(
