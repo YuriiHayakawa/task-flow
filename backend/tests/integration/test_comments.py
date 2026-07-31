@@ -581,10 +581,16 @@ def test_create_comment_http_rolls_back_on_notification_failure(
 # --- Regressão -----------------------------------------------------------------
 
 
-def test_no_notifications_route_in_openapi(client):
-    response = client.get("/openapi.json")
-    paths = response.json()["paths"]
-    assert not any("notifications" in path for path in paths)
+def test_notifications_endpoint_now_works(client, make_user, auth_headers):
+    """Fase 8 (T084): este teste originalmente confirmava que
+    `/notifications` ainda NÃO existia (regra de não antecipar a Fase 13).
+    Agora que a Fase 13/US11 implementou o módulo, a premissa mudou —
+    reescrito para confirmar o oposto: o endpoint existe e responde."""
+    user = make_user()
+
+    response = client.get("/api/v1/notifications", headers=auth_headers(user))
+
+    assert response.status_code == 200
 
 
 def test_task_members_endpoint_still_works(

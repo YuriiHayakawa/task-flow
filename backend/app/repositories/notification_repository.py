@@ -1,9 +1,12 @@
 import uuid
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.enums.task_status import TaskStatus
 from app.models.notification import Notification
+from app.models.task import Task
 
 
 class NotificationRepository:
@@ -48,3 +51,59 @@ class NotificationRepository:
         notification.is_read = True
         self.db.flush()
         return notification
+
+    def get_by_recipient_and_id(
+        self, recipient_id: uuid.UUID, notification_id: uuid.UUID
+    ) -> Notification | None:
+        """Escopado por `recipient_id` E `notification_id` juntos — mesmo
+        padrão de `ChecklistItemRepository.get_by_task_and_id`/
+        `AttachmentRepository.get_by_task_and_id`: uma notificação de outro
+        usuário nunca é encontrada, mesmo com o `notification_id` certo
+        (contracts/dashboard-and-notifications.md — tratado como `404`, não
+        `403`, mesmo padrão de segurança do resto da API)."""
+        stmt = select(Notification).where(
+            Notification.recipient_id == recipient_id, Notification.id == notification_id
+        )
+        return self.db.scalars(stmt).first()
+
+    def mark_all_read(self, recipient_id: uuid.UUID) -> int:
+        """`PATCH /api/v1/notifications/read-all` — marca todas as não lidas
+        do destinatário; retorna a contagem efetivamente alterada (`updated`
+        na resposta). `synchronize_session=False`: nenhum objeto ORM desta
+        entidade precisa permanecer sincronizado em memória após esta
+        chamada neste fluxo."""
+        stmt = (
+            update(Notification)
+            .where(Notification.recipient_id == recipient_id, Notification.is_read.is_(False))
+            .values(is_read=True)
+            .execution_options(synchronize_session=False)
+        )
+        result = self.db.execute(stmt)
+        self.db.flush()
+        return result.rowcount or 0
+
+    def list_due_soon_candidates(self, *, now: datetime, window_hours: int) -> list[Task]:
+        """Consulta de elegibilidade a `DUE_SOON` (T103, research.md #2) —
+        atribuída a este repository (não a `TaskRepository`) por instrução
+        explícita de `tasks.md`: "estender
+        backend/app/repositories/notification_repository.py com consultas
+        de tarefas elegíveis a DUE_SOON".
+
+        Critérios (todos combinados em `AND`): `status != DONE`; `due_date`
+        não nulo; `due_date` dentro de `window_hours` à frente de `now`
+        (sem limite inferior — cobre tanto "vencendo hoje" quanto tarefas já
+        atrasadas e ainda não notificadas); `due_soon_notified_for IS
+        DISTINCT FROM due_date` (idempotência — uma tarefa já notificada
+        para o `due_date` atual não é reselecionada)."""
+        threshold = (now + timedelta(hours=window_hours)).date()
+        stmt = (
+            select(Task)
+            .where(
+                Task.status != TaskStatus.DONE,
+                Task.due_date.is_not(None),
+                Task.due_date <= threshold,
+                Task.due_soon_notified_for.is_distinct_from(Task.due_date),
+            )
+            .order_by(Task.id.asc())
+        )
+        return list(self.db.scalars(stmt))
