@@ -10,7 +10,9 @@ from app.dependencies.task_authorization import (
 )
 from app.models.task import Task
 from app.models.user import User
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.project_repository import ProjectRepository
+from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.common import PaginatedResponse
@@ -21,7 +23,13 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 def get_task_service(db: Session = Depends(get_db)) -> TaskService:
-    return TaskService(TaskRepository(db), ProjectRepository(db), WorkspaceMemberRepository(db))
+    return TaskService(
+        TaskRepository(db),
+        ProjectRepository(db),
+        WorkspaceMemberRepository(db),
+        TaskMemberRepository(db),
+        NotificationRepository(db),
+    )
 
 
 @router.post("", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
@@ -54,10 +62,11 @@ def get_task(task: Task = Depends(require_task_visible)) -> Task:
 @router.patch("/{task_id}", response_model=TaskRead)
 def update_task(
     data: TaskUpdate,
+    current_user: User = Depends(get_current_user),
     task: Task = Depends(require_task_editor),
     service: TaskService = Depends(get_task_service),
 ) -> Task:
-    return service.update(task, data)
+    return service.update(task, data, changed_by=current_user.id)
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,13 +1,21 @@
 """T039 [US1] — testes unitários das invariantes de tarefa pessoal em
-`TaskService`, isolados do banco via um repository em memória (Fake)."""
+`TaskService`, isolados do banco via um repository em memória (Fake).
+
+T106 (US11, Fase 13): estende com testes de reatribuição de responsável em
+tarefa de workspace (correção de bug encontrado na abertura da Fase 13) e de
+geração de `Notification` tipo `TASK_CHANGED`."""
 
 import uuid
+from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pytest
 
 from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
+from app.enums.notification_type import NotificationType
 from app.enums.task_status import TaskStatus
 from app.enums.workspace_role import WorkspaceRole
+from app.models.notification import Notification
 from app.models.project import Project
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskUpdate
@@ -16,6 +24,9 @@ from app.services.task_service import TaskService
 
 class _FakeSession:
     def commit(self) -> None:
+        pass
+
+    def rollback(self) -> None:
         pass
 
     def refresh(self, _obj: object) -> None:
@@ -71,6 +82,32 @@ class FakeWorkspaceMemberRepository:
         return self.roles.get((workspace_id, user_id))
 
 
+class FakeTaskMemberRepository:
+    """T106 (US11) — permite testar a resolução de destinatários de
+    `TASK_CHANGED` (participantes explícitos) sem tocar no banco."""
+
+    def __init__(self) -> None:
+        self.members: dict[uuid.UUID, list[uuid.UUID]] = {}
+
+    def seed(self, task_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self.members.setdefault(task_id, []).append(user_id)
+
+    def list_by_task(self, task_id: uuid.UUID) -> list[SimpleNamespace]:
+        return [SimpleNamespace(user_id=user_id) for user_id in self.members.get(task_id, [])]
+
+
+class FakeNotificationRepository:
+    """T106 (US11) — captura as `Notification` criadas por `TaskService.update`
+    sem tocar no banco."""
+
+    def __init__(self) -> None:
+        self.notifications: list[Notification] = []
+
+    def create(self, notification: Notification) -> Notification:
+        self.notifications.append(notification)
+        return notification
+
+
 @pytest.fixture()
 def project_repo() -> FakeProjectRepository:
     return FakeProjectRepository()
@@ -82,10 +119,23 @@ def member_repo() -> FakeWorkspaceMemberRepository:
 
 
 @pytest.fixture()
+def task_member_repo() -> FakeTaskMemberRepository:
+    return FakeTaskMemberRepository()
+
+
+@pytest.fixture()
+def notification_repo() -> FakeNotificationRepository:
+    return FakeNotificationRepository()
+
+
+@pytest.fixture()
 def task_service(
-    project_repo: FakeProjectRepository, member_repo: FakeWorkspaceMemberRepository
+    project_repo: FakeProjectRepository,
+    member_repo: FakeWorkspaceMemberRepository,
+    task_member_repo: FakeTaskMemberRepository,
+    notification_repo: FakeNotificationRepository,
 ) -> TaskService:
-    return TaskService(FakeTaskRepository(), project_repo, member_repo)
+    return TaskService(FakeTaskRepository(), project_repo, member_repo, task_member_repo, notification_repo)
 
 
 def test_create_personal_task_forces_assignee_to_creator(task_service: TaskService) -> None:
@@ -191,7 +241,7 @@ def test_update_status_to_done_sets_completed_at(task_service: TaskService) -> N
     creator_id = uuid.uuid4()
     task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
 
-    updated = task_service.update(task, TaskUpdate(status=TaskStatus.DONE))
+    updated = task_service.update(task, TaskUpdate(status=TaskStatus.DONE), changed_by=creator_id)
 
     assert updated.status == TaskStatus.DONE
     assert updated.completed_at is not None
@@ -200,9 +250,9 @@ def test_update_status_to_done_sets_completed_at(task_service: TaskService) -> N
 def test_update_reopen_clears_completed_at(task_service: TaskService) -> None:
     creator_id = uuid.uuid4()
     task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
-    task_service.update(task, TaskUpdate(status=TaskStatus.DONE))
+    task_service.update(task, TaskUpdate(status=TaskStatus.DONE), changed_by=creator_id)
 
-    updated = task_service.update(task, TaskUpdate(status=TaskStatus.PENDING))
+    updated = task_service.update(task, TaskUpdate(status=TaskStatus.PENDING), changed_by=creator_id)
 
     assert updated.status == TaskStatus.PENDING
     assert updated.completed_at is None
@@ -214,7 +264,7 @@ def test_update_rejects_reassigning_personal_task(task_service: TaskService) -> 
     task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
 
     with pytest.raises(BusinessRuleViolationError):
-        task_service.update(task, TaskUpdate(assignee_id=other_id))
+        task_service.update(task, TaskUpdate(assignee_id=other_id), changed_by=creator_id)
 
 
 def test_update_rejects_workspace_conversion(task_service: TaskService) -> None:
@@ -222,4 +272,195 @@ def test_update_rejects_workspace_conversion(task_service: TaskService) -> None:
     task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
 
     with pytest.raises(BusinessRuleViolationError):
-        task_service.update(task, TaskUpdate(workspace_id=uuid.uuid4()))
+        task_service.update(task, TaskUpdate(workspace_id=uuid.uuid4()), changed_by=creator_id)
+
+
+# --- T106: correção do bug de reatribuição em tarefa de workspace --------------
+
+
+def test_update_reassigns_workspace_task_to_valid_member(
+    task_service: TaskService, member_repo: FakeWorkspaceMemberRepository
+) -> None:
+    """Antes da correção (Fase 13), esta reatribuição era incorretamente
+    rejeitada pela regra de tarefa pessoal, aplicada de forma incondicional."""
+    creator_id = uuid.uuid4()
+    other_member_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, other_member_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id), creator_id=creator_id
+    )
+
+    updated = task_service.update(
+        task, TaskUpdate(assignee_id=other_member_id), changed_by=creator_id
+    )
+
+    assert updated.assignee_id == other_member_id
+
+
+def test_update_rejects_reassigning_workspace_task_to_non_member(
+    task_service: TaskService, member_repo: FakeWorkspaceMemberRepository
+) -> None:
+    creator_id = uuid.uuid4()
+    non_member_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id), creator_id=creator_id
+    )
+
+    with pytest.raises(BusinessRuleViolationError):
+        task_service.update(task, TaskUpdate(assignee_id=non_member_id), changed_by=creator_id)
+
+
+# --- T106: notificação TASK_CHANGED --------------------------------------------
+
+
+def test_update_status_change_notifies_participant_except_changed_by(
+    task_service: TaskService,
+    member_repo: FakeWorkspaceMemberRepository,
+    task_member_repo: FakeTaskMemberRepository,
+    notification_repo: FakeNotificationRepository,
+) -> None:
+    creator_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, participant_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id), creator_id=creator_id
+    )
+    task_member_repo.seed(task.id, participant_id)
+
+    task_service.update(task, TaskUpdate(status=TaskStatus.IN_PROGRESS), changed_by=creator_id)
+
+    assert len(notification_repo.notifications) == 1
+    notification = notification_repo.notifications[0]
+    assert notification.recipient_id == participant_id
+    assert notification.type == NotificationType.TASK_CHANGED
+    assert notification.task_id == task.id
+
+
+def test_update_does_not_notify_the_author_of_the_change(
+    task_service: TaskService, member_repo: FakeWorkspaceMemberRepository, notification_repo
+) -> None:
+    creator_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id), creator_id=creator_id
+    )
+
+    task_service.update(task, TaskUpdate(priority="HIGH"), changed_by=creator_id)
+
+    assert notification_repo.notifications == []
+
+
+def test_update_untracked_field_change_generates_no_notification(
+    task_service: TaskService,
+    member_repo: FakeWorkspaceMemberRepository,
+    task_member_repo: FakeTaskMemberRepository,
+    notification_repo: FakeNotificationRepository,
+) -> None:
+    creator_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, participant_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id), creator_id=creator_id
+    )
+    task_member_repo.seed(task.id, participant_id)
+
+    task_service.update(task, TaskUpdate(title="Novo título"), changed_by=creator_id)
+
+    assert notification_repo.notifications == []
+
+
+def test_update_personal_task_change_generates_no_notification(
+    task_service: TaskService, notification_repo: FakeNotificationRepository
+) -> None:
+    creator_id = uuid.uuid4()
+    task = task_service.create(TaskCreate(title="Tarefa pessoal"), creator_id=creator_id)
+
+    task_service.update(task, TaskUpdate(status=TaskStatus.DONE), changed_by=creator_id)
+
+    assert notification_repo.notifications == []
+
+
+def test_update_reassignment_notifies_both_old_and_new_assignee(
+    task_service: TaskService,
+    member_repo: FakeWorkspaceMemberRepository,
+    notification_repo: FakeNotificationRepository,
+) -> None:
+    creator_id = uuid.uuid4()
+    old_assignee_id = uuid.uuid4()
+    new_assignee_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, old_assignee_id, WorkspaceRole.MEMBER)
+    member_repo.seed(workspace_id, new_assignee_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id, assignee_id=old_assignee_id),
+        creator_id=creator_id,
+    )
+
+    task_service.update(task, TaskUpdate(assignee_id=new_assignee_id), changed_by=creator_id)
+
+    recipients = {n.recipient_id for n in notification_repo.notifications}
+    assert recipients == {old_assignee_id, new_assignee_id}
+
+
+def test_update_no_change_to_tracked_fields_value_generates_no_notification(
+    task_service: TaskService,
+    member_repo: FakeWorkspaceMemberRepository,
+    task_member_repo: FakeTaskMemberRepository,
+    notification_repo: FakeNotificationRepository,
+) -> None:
+    """Reenviar o mesmo valor já vigente não é uma "mudança" — não gera
+    notificação nem reseta `due_soon_notified_for`."""
+    creator_id = uuid.uuid4()
+    participant_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, participant_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id, priority="MEDIUM"),
+        creator_id=creator_id,
+    )
+    task_member_repo.seed(task.id, participant_id)
+
+    task_service.update(task, TaskUpdate(priority="MEDIUM"), changed_by=creator_id)
+
+    assert notification_repo.notifications == []
+
+
+# --- T106: reset de due_soon_notified_for --------------------------------------
+
+
+def test_update_due_date_change_resets_due_soon_notified_for(task_service: TaskService) -> None:
+    creator_id = uuid.uuid4()
+    task = task_service.create(
+        TaskCreate(title="Tarefa", due_date=date.today()), creator_id=creator_id
+    )
+    task.due_soon_notified_for = task.due_date  # simula já notificado
+
+    updated = task_service.update(
+        task, TaskUpdate(due_date=date.today() + timedelta(days=5)), changed_by=creator_id
+    )
+
+    assert updated.due_soon_notified_for is None
+
+
+def test_update_due_date_unchanged_does_not_reset_due_soon_notified_for(
+    task_service: TaskService,
+) -> None:
+    creator_id = uuid.uuid4()
+    due_date = date.today()
+    task = task_service.create(TaskCreate(title="Tarefa", due_date=due_date), creator_id=creator_id)
+    task.due_soon_notified_for = due_date
+
+    updated = task_service.update(task, TaskUpdate(due_date=due_date), changed_by=creator_id)
+
+    assert updated.due_soon_notified_for == due_date

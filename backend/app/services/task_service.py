@@ -2,12 +2,18 @@ import uuid
 from datetime import datetime, timezone
 
 from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
+from app.enums.notification_type import NotificationType
 from app.enums.task_status import TaskStatus
+from app.models.notification import Notification
 from app.models.task import Task
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.project_repository import ProjectRepository
+from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.task import TaskCreate, TaskSearchParams, TaskUpdate
+
+_TASK_CHANGED_TRACKED_FIELDS = ("status", "priority", "due_date", "assignee_id")
 
 
 class TaskService:
@@ -16,10 +22,14 @@ class TaskService:
         task_repository: TaskRepository,
         project_repository: ProjectRepository,
         workspace_member_repository: WorkspaceMemberRepository,
+        task_member_repository: TaskMemberRepository,
+        notification_repository: NotificationRepository,
     ) -> None:
         self.task_repository = task_repository
         self.project_repository = project_repository
         self.workspace_member_repository = workspace_member_repository
+        self.task_member_repository = task_member_repository
+        self.notification_repository = notification_repository
         self.db = task_repository.db
 
     def create(self, data: TaskCreate, creator_id: uuid.UUID) -> Task:
@@ -96,6 +106,16 @@ class TaskService:
 
         return workspace_id, data.project_id
 
+    def _require_workspace_member(self, workspace_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        """Extraído de `_resolve_workspace_assignee` para ser reaproveitado
+        também pela validação de reatribuição em `update` (T106) — mesma
+        regra, mesma mensagem, um único lugar."""
+        role = self.workspace_member_repository.get_role(workspace_id, user_id)
+        if role is None:
+            raise BusinessRuleViolationError(
+                "O responsável pela tarefa deve ser membro deste workspace."
+            )
+
     def _resolve_workspace_assignee(
         self, data: TaskCreate, workspace_id: uuid.UUID, creator_id: uuid.UUID
     ) -> uuid.UUID:
@@ -105,11 +125,7 @@ class TaskService:
         if data.assignee_id is None or data.assignee_id == creator_id:
             return creator_id
 
-        role = self.workspace_member_repository.get_role(workspace_id, data.assignee_id)
-        if role is None:
-            raise BusinessRuleViolationError(
-                "O responsável pela tarefa deve ser membro deste workspace."
-            )
+        self._require_workspace_member(workspace_id, data.assignee_id)
         return data.assignee_id
 
     def search(self, user_id: uuid.UUID, params: TaskSearchParams) -> tuple[list[Task], int]:
@@ -138,15 +154,35 @@ class TaskService:
         na dependency da rota; aqui só a exclusão em si. Cascade de banco
         (`ON DELETE CASCADE`, já definido nas migrações da Fase 2) remove
         `TaskMember`/`Comment`/`ChecklistItem`/`Attachment`/
-        `TaskHistoryEntry`/`Notification` relacionados — todas essas tabelas
-        estão vazias até as fases que implementam essas funcionalidades."""
+        `TaskHistoryEntry`/`Notification` relacionados."""
         self.task_repository.delete(task)
         self.db.commit()
 
-    def update(self, task: Task, data: TaskUpdate) -> Task:
-        """`status = DONE` seta `completed_at`; reabrir limpa (FR-011). Conversão
-        de tarefa pessoal para tarefa de workspace ainda não é suportada nesta
-        fase (chega com a lógica completa de workspace na US4)."""
+    def update(self, task: Task, data: TaskUpdate, changed_by: uuid.UUID) -> Task:
+        """`status = DONE` seta `completed_at`; reabrir limpa (FR-011).
+        Conversão de tarefa pessoal para tarefa de workspace ainda não é
+        suportada nesta fase.
+
+        Reatribuição de responsável (T106 — correção de um bug encontrado na
+        abertura da Fase 13): tarefa pessoal continua exigindo
+        `assignee_id == creator_id` (única invariante válida ali); tarefa de
+        workspace agora valida `assignee_id` contra membership do workspace
+        (`_require_workspace_member`, mesma regra de `_resolve_workspace_
+        assignee` em `create`) — ANTES desta correção, qualquer reatribuição
+        de tarefa de workspace era incorretamente rejeitada pela regra de
+        tarefa pessoal, aplicada aqui de forma incondicional.
+
+        FR-039/T106: mudança de status/prioridade/prazo/responsável gera
+        `Notification` tipo `TASK_CHANGED` para os participantes afetados
+        (responsável anterior + responsável novo + `TaskMember` explícitos),
+        exceto quem fez a alteração — tarefa pessoal nunca tem outro
+        participante, então o conjunto é sempre vazio nesse caso.
+        `due_soon_notified_for` é resetado para `NULL` sempre que `due_date`
+        muda de fato (research.md #2), independentemente do valor anterior.
+
+        Transação única: `task.update` + todas as `Notification` num único
+        `commit()`; qualquer exceção após o início das escritas reverte tudo
+        (mesmo padrão de `CommentService.create_comment`, Fase 8)."""
         changes = data.model_dump(exclude_unset=True)
 
         if "workspace_id" in changes or "project_id" in changes:
@@ -156,11 +192,16 @@ class TaskService:
 
         if "assignee_id" in changes:
             new_assignee_id = changes["assignee_id"]
-            if new_assignee_id is not None and new_assignee_id != task.creator_id:
-                raise BusinessRuleViolationError(
-                    "Uma tarefa pessoal não pode ser atribuída a outro usuário."
-                )
-            changes["assignee_id"] = task.creator_id
+            if task.workspace_id is None:
+                if new_assignee_id is not None and new_assignee_id != task.creator_id:
+                    raise BusinessRuleViolationError(
+                        "Uma tarefa pessoal não pode ser atribuída a outro usuário."
+                    )
+                changes["assignee_id"] = task.creator_id
+            elif new_assignee_id is None:
+                changes["assignee_id"] = task.assignee_id
+            else:
+                self._require_workspace_member(task.workspace_id, new_assignee_id)
 
         if "status" in changes:
             new_status = changes["status"]
@@ -169,10 +210,59 @@ class TaskService:
             elif new_status != TaskStatus.DONE and task.status == TaskStatus.DONE:
                 task.completed_at = None
 
+        if "due_date" in changes and changes["due_date"] != task.due_date:
+            task.due_soon_notified_for = None
+
+        changed_tracked_fields = {
+            field
+            for field in _TASK_CHANGED_TRACKED_FIELDS
+            if field in changes and changes[field] != getattr(task, field)
+        }
+        notification_recipients: set[uuid.UUID] = set()
+        if changed_tracked_fields:
+            old_assignee_id = task.assignee_id
+            new_assignee_id = changes.get("assignee_id", task.assignee_id)
+            notification_recipients = self._resolve_task_changed_recipients(
+                task, old_assignee_id, new_assignee_id, changed_by
+            )
+
         for field, value in changes.items():
             setattr(task, field, value)
 
-        task = self.task_repository.update(task)
-        self.db.commit()
+        try:
+            self.task_repository.update(task)
+            for recipient_id in notification_recipients:
+                notification = Notification(
+                    recipient_id=recipient_id,
+                    task_id=task.id,
+                    type=NotificationType.TASK_CHANGED,
+                    title="Tarefa atualizada",
+                    message=f'A tarefa "{task.title}" foi atualizada.',
+                )
+                self.notification_repository.create(notification)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(task)
         return task
+
+    def _resolve_task_changed_recipients(
+        self,
+        task: Task,
+        old_assignee_id: uuid.UUID,
+        new_assignee_id: uuid.UUID,
+        changed_by: uuid.UUID,
+    ) -> set[uuid.UUID]:
+        """Participantes afetados por uma alteração relevante (FR-039): o
+        responsável anterior e o novo (cobre a própria reatribuição) +
+        participantes explícitos (`TaskMember`) — exceto quem fez a
+        alteração."""
+        if task.workspace_id is None:
+            return set()
+
+        explicit_participant_ids = {
+            row.user_id for row in self.task_member_repository.list_by_task(task.id)
+        }
+        return ({old_assignee_id, new_assignee_id} | explicit_participant_ids) - {changed_by}

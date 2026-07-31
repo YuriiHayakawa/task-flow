@@ -690,31 +690,31 @@ confirmar notificação criada; job periódico gera `DUE_SOON` sem duplicar.
 
 ### Testes
 
-- [ ] T100 [P] [US11] Testes de integração de listagem/marcação de notificações
+- [x] T100 [P] [US11] Testes de integração de listagem/marcação de notificações
   (`GET /notifications`, marcar lida/todas lidas, isolamento por destinatário) em
   `backend/tests/integration/test_notifications.py`
-- [ ] T101 [P] [US11] Testes de integração das regras completas de `due_soon_notified_for`
+- [x] T101 [P] [US11] Testes de integração das regras completas de `due_soon_notified_for`
   (`NULL` quando `due_date` nulo; reset ao alterar prazo; `DONE` nunca gera `DUE_SOON`; Notification +
   campo na mesma transação; execução repetida não duplica; reabrir sem alterar prazo não notifica;
   reabrir com novo prazo notifica — `research.md` #2) em
   `backend/tests/integration/test_due_soon_notifications.py`
-- [ ] T102 [P] [US11] Teste de integração que impede execução simultânea do job (advisory lock
+- [x] T102 [P] [US11] Teste de integração que impede execução simultânea do job (advisory lock
   obtido manualmente por uma "segunda instância" simulada; `run_due_soon_job()` não processa nada
   até o lock ser liberado) em `backend/tests/integration/test_due_soon_scheduler.py`
 
 ### Schemas & Repositories
 
-- [ ] T103 [US11] Criar `backend/app/schemas/notification.py` (`NotificationRead`) e estender
+- [x] T103 [US11] Criar `backend/app/schemas/notification.py` (`NotificationRead`) e estender
   `backend/app/repositories/notification_repository.py` com consultas de tarefas elegíveis a
   `DUE_SOON` (`status != DONE`, `due_date` não nulo, dentro de `DUE_SOON_WINDOW_HOURS`,
   `due_soon_notified_for IS DISTINCT FROM due_date`) (depende de T082, T027)
 
 ### Services & Scheduler
 
-- [ ] T104 [US11] Criar `backend/app/services/notification_service.py` —
+- [x] T104 [US11] Criar `backend/app/services/notification_service.py` —
   `generate_due_soon_notifications(session, now)`: cria `Notification` + atualiza
   `due_soon_notified_for` na mesma transação, por tarefa elegível (depende de T103)
-- [ ] T105 [US11] Implementar `run_due_soon_job()` em `backend/app/core/scheduler.py` (conexão
+- [x] T105 [US11] Implementar `run_due_soon_job()` em `backend/app/core/scheduler.py` (conexão
   dedicada + `pg_try_advisory_lock`, `Session` própria por execução, chama
   `generate_due_soon_notifications`, libera lock em `finally`, fecha Session/conexão em `finally` —
   `research.md` #2) e conectar o loop `asyncio` a ela via `asyncio.to_thread` a cada
@@ -722,13 +722,13 @@ confirmar notificação criada; job periódico gera `DUE_SOON` sem duplicar.
 
 ### Integração
 
-- [ ] T106 [US11] Estender `backend/app/services/task_service.py` (`update`) para criar
+- [x] T106 [US11] Estender `backend/app/services/task_service.py` (`update`) para criar
   `Notification` tipo `TASK_CHANGED` para os participantes afetados (exceto quem alterou) na mesma
   transação de qualquer mudança de status/prioridade/prazo/responsável (depende de T072, T082, T076)
 
 ### Routes
 
-- [ ] T107 [US11] Criar `backend/app/routes/notifications.py` (`GET /api/v1/notifications`,
+- [x] T107 [US11] Criar `backend/app/routes/notifications.py` (`GET /api/v1/notifications`,
   `PATCH .../{id}/read`, `PATCH /read-all`) e registrar o router em `backend/app/main.py` (depende
   de T103, T034)
 

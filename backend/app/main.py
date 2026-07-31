@@ -11,6 +11,7 @@ from app.routes.auth import router as auth_router
 from app.routes.checklist import router as checklist_router
 from app.routes.comments import router as comments_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.notifications import router as notifications_router
 from app.routes.projects import router as projects_router
 from app.routes.task_members import router as task_members_router
 from app.routes.tasks import router as tasks_router
@@ -47,4 +48,5 @@ api_router.include_router(comments_router)
 api_router.include_router(users_router)
 api_router.include_router(checklist_router)
 api_router.include_router(attachments_router)
+api_router.include_router(notifications_router)
 app.include_router(api_router)
