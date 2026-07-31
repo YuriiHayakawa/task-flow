@@ -649,13 +649,13 @@ excluir e confirmar remoção do arquivo físico.
 
 ### Testes
 
-- [ ] T096 [P] [US10] Testes de integração de anexos (upload com validação de tipo/tamanho,
+- [x] T096 [P] [US10] Testes de integração de anexos (upload com validação de tipo/tamanho,
   listagem, download, remoção por uploader ou Owner/Admin, prevenção de path traversal) em
   `backend/tests/integration/test_attachments.py`
 
 ### Utils, Schemas & Repositories
 
-- [ ] T097 [US10] Criar `backend/app/utils/file_storage.py` (geração de nome de arquivo seguro via
+- [x] T097 [US10] Criar `backend/app/utils/file_storage.py` (geração de nome de arquivo seguro via
   UUID, validação de extensão/tipo/tamanho, gravação/remoção em `ATTACHMENTS_DIR` — prevenção de
   path traversal, `research.md` #12), `backend/app/schemas/attachment.py` (`AttachmentRead`) e
   `backend/app/repositories/attachment_repository.py` (`create`, `list_by_task`, `get_by_id`,
@@ -663,11 +663,11 @@ excluir e confirmar remoção do arquivo físico.
 
 ### Services & Routes
 
-- [ ] T098 [US10] Criar `backend/app/services/attachment_service.py` (upload validando tipo/tamanho
+- [x] T098 [US10] Criar `backend/app/services/attachment_service.py` (upload validando tipo/tamanho
   antes de gravar; exclusão controlada — localizar arquivo, autorizar, excluir registro em
   transação, remover arquivo físico após commit, logar falha sem falhar a resposta — `research.md`
   #12) (depende de T097)
-- [ ] T099 [US10] Criar `backend/app/routes/attachments.py` (`GET/POST
+- [x] T099 [US10] Criar `backend/app/routes/attachments.py` (`GET/POST
   /api/v1/tasks/{id}/attachments`, `GET .../attachments/{id}/download`,
   `DELETE .../attachments/{id}` — remoção por uploader ou `require_workspace_admin_or_owner`) e
   registrar o router em `backend/app/main.py` (depende de T098, T077, T062)
