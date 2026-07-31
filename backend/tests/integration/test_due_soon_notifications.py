@@ -158,3 +158,56 @@ def test_multiple_eligible_tasks_all_notified_in_one_run(db_session, make_user, 
     created = _service(db_session).generate_due_soon_notifications(now=_NOW)
 
     assert created == 2
+
+
+# --- Fase 16 (hardening): atomicidade — rollback de ambas as escritas ----------
+
+
+def test_partial_failure_rolls_back_entire_batch(db_session, make_user, make_task, monkeypatch):
+    """plan.md (seção Testes, refinamento #14): "Notification + atualização
+    do campo ocorrem na mesma transação (testado inclusive simulando falha
+    entre as duas operações, confirmando rollback de ambas)". Como não há
+    commit por tarefa dentro do laço, uma falha ao processar QUALQUER
+    tarefa do lote também reverte as que já haviam sido processadas com
+    sucesso na mesma chamada — nunca um resultado parcial. Mesmo padrão de
+    SAVEPOINT de `test_comment_service_atomicity.py` (Fase 8)."""
+    user = make_user()
+    task_a = make_task(creator=user, title="Tarefa A", due_date=_NOW.date())
+    task_b = make_task(creator=user, title="Tarefa B", due_date=_NOW.date())
+    service = _service(db_session)
+
+    call_count = {"n": 0}
+    original_create = NotificationRepository.create
+
+    def _failing_create(self: NotificationRepository, notification):
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            raise RuntimeError("Falha simulada na segunda tarefa do lote")
+        return original_create(self, notification)
+
+    monkeypatch.setattr(NotificationRepository, "create", _failing_create)
+
+    raised = False
+    try:
+        with db_session.begin_nested():
+            service.generate_due_soon_notifications(now=_NOW)
+    except RuntimeError:
+        raised = True
+
+    assert raised, "esperava a RuntimeError simulada propagando"
+    assert call_count["n"] == 2, "esperava a falha exatamente na 2a tarefa do lote"
+
+    from app.models.notification import Notification
+    from app.models.task import Task
+
+    reloaded_a = db_session.get(Task, task_a.id)
+    reloaded_b = db_session.get(Task, task_b.id)
+    assert reloaded_a.due_soon_notified_for is None, "revertido apesar de ter sido processada 1a"
+    assert reloaded_b.due_soon_notified_for is None
+
+    notifications = (
+        db_session.query(Notification)
+        .filter(Notification.task_id.in_([task_a.id, task_b.id]))
+        .all()
+    )
+    assert notifications == [], "nenhuma notificação deveria ter sobrevivido ao rollback"

@@ -8,6 +8,7 @@ from app.dependencies.authorization import require_workspace_member, require_wor
 from app.dependencies.db import get_db
 from app.enums.workspace_role import WorkspaceRole
 from app.models.user import User
+from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.user_repository import UserRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
@@ -22,7 +23,9 @@ router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
 def get_workspace_service(db: Session = Depends(get_db)) -> WorkspaceService:
-    return WorkspaceService(WorkspaceRepository(db), WorkspaceMemberRepository(db))
+    return WorkspaceService(
+        WorkspaceRepository(db), WorkspaceMemberRepository(db), AttachmentRepository(db)
+    )
 
 
 def get_workspace_member_service(db: Session = Depends(get_db)) -> WorkspaceMemberService:

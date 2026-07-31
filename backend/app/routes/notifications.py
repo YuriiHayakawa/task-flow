@@ -39,7 +39,7 @@ def list_notifications(
     }
 
 
-@router.patch("/read-all")
+@router.patch("/read-all", response_model=dict[str, int])
 def mark_all_notifications_read(
     current_user: User = Depends(get_current_user),
     service: NotificationService = Depends(get_notification_service),

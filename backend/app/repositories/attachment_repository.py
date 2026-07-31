@@ -4,6 +4,7 @@ from sqlalchemy import Row, select
 from sqlalchemy.orm import Session
 
 from app.models.attachment import Attachment
+from app.models.task import Task
 from app.models.user import User
 
 
@@ -59,3 +60,23 @@ class AttachmentRepository:
     def delete(self, attachment: Attachment) -> None:
         self.db.delete(attachment)
         self.db.flush()
+
+    def list_storage_paths_by_task(self, task_id: uuid.UUID) -> list[str]:
+        """Fase 16 (hardening) — usado por `TaskService.delete` para coletar
+        os caminhos físicos de todos os anexos da tarefa **antes** do
+        cascade de banco remover os registros (research.md #12, passo 1:
+        "localizar todos os anexos físicos afetados antes de qualquer
+        alteração no banco"). Só os caminhos — a limpeza física não precisa
+        do restante do modelo."""
+        stmt = select(Attachment.storage_path).where(Attachment.task_id == task_id)
+        return list(self.db.scalars(stmt))
+
+    def list_storage_paths_by_workspace(self, workspace_id: uuid.UUID) -> list[str]:
+        """Idem, para `WorkspaceService.delete` — `Attachment` não tem
+        `workspace_id` diretamente, por isso o JOIN com `Task`."""
+        stmt = (
+            select(Attachment.storage_path)
+            .join(Task, Task.id == Attachment.task_id)
+            .where(Task.workspace_id == workspace_id)
+        )
+        return list(self.db.scalars(stmt))

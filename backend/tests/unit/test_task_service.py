@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.core.config import settings
 from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
 from app.enums.notification_type import NotificationType
 from app.enums.task_priority import TaskPriority
@@ -22,6 +23,16 @@ from app.models.task import Task
 from app.models.task_history_entry import TaskHistoryEntry
 from app.schemas.task import TaskCreate, TaskUpdate
 from app.services.task_service import TaskService
+from app.utils import file_storage
+
+
+@pytest.fixture(autouse=True)
+def _isolated_attachments_dir(tmp_path, monkeypatch):
+    """`TaskService.delete` chama `file_storage.delete_file` de verdade —
+    isola qualquer I/O real num diretório descartável do pytest, mesmo
+    padrão de `test_attachment_service.py`."""
+    monkeypatch.setattr(settings, "ATTACHMENTS_DIR", str(tmp_path))
+    return tmp_path
 
 
 class _FakeSession:
@@ -52,6 +63,9 @@ class FakeTaskRepository:
 
     def update(self, task: Task) -> Task:
         return task
+
+    def delete(self, task: Task) -> None:
+        self.tasks.pop(task.id, None)
 
 
 class FakeProjectRepository:
@@ -122,6 +136,20 @@ class FakeTaskHistoryRepository:
         return entry
 
 
+class FakeAttachmentRepository:
+    """Fase 16 (hardening) — permite testar a coleta de `storage_path`
+    antes da exclusão de tarefa (`TaskService.delete`) sem tocar no banco."""
+
+    def __init__(self) -> None:
+        self.storage_paths_by_task: dict[uuid.UUID, list[str]] = {}
+
+    def seed(self, task_id: uuid.UUID, *storage_paths: str) -> None:
+        self.storage_paths_by_task.setdefault(task_id, []).extend(storage_paths)
+
+    def list_storage_paths_by_task(self, task_id: uuid.UUID) -> list[str]:
+        return list(self.storage_paths_by_task.get(task_id, []))
+
+
 @pytest.fixture()
 def project_repo() -> FakeProjectRepository:
     return FakeProjectRepository()
@@ -148,12 +176,18 @@ def task_history_repo() -> FakeTaskHistoryRepository:
 
 
 @pytest.fixture()
+def attachment_repo() -> FakeAttachmentRepository:
+    return FakeAttachmentRepository()
+
+
+@pytest.fixture()
 def task_service(
     project_repo: FakeProjectRepository,
     member_repo: FakeWorkspaceMemberRepository,
     task_member_repo: FakeTaskMemberRepository,
     notification_repo: FakeNotificationRepository,
     task_history_repo: FakeTaskHistoryRepository,
+    attachment_repo: FakeAttachmentRepository,
 ) -> TaskService:
     return TaskService(
         FakeTaskRepository(),
@@ -162,6 +196,7 @@ def task_service(
         task_member_repo,
         notification_repo,
         task_history_repo,
+        attachment_repo,
     )
 
 
@@ -339,6 +374,28 @@ def test_update_rejects_reassigning_workspace_task_to_non_member(
 
     with pytest.raises(BusinessRuleViolationError):
         task_service.update(task, TaskUpdate(assignee_id=non_member_id), changed_by=creator_id)
+
+
+def test_update_workspace_task_explicit_null_assignee_keeps_current_assignee(
+    task_service: TaskService, member_repo: FakeWorkspaceMemberRepository
+) -> None:
+    """Fase 16 (hardening) — lacuna de cobertura: `assignee_id: null`
+    explícito em tarefa de workspace (diferente de "campo não enviado")
+    mantém o responsável atual, em vez de forçar `creator_id` (regra que só
+    vale para tarefa pessoal)."""
+    creator_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    member_repo.seed(workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(workspace_id, assignee_id, WorkspaceRole.MEMBER)
+    task = task_service.create(
+        TaskCreate(title="Tarefa", workspace_id=workspace_id, assignee_id=assignee_id),
+        creator_id=creator_id,
+    )
+
+    updated = task_service.update(task, TaskUpdate(assignee_id=None), changed_by=creator_id)
+
+    assert updated.assignee_id == assignee_id
 
 
 # --- T106: notificação TASK_CHANGED --------------------------------------------
@@ -639,3 +696,48 @@ def test_update_due_date_to_none_creates_history_entry_with_null_new_value(
 
     entry = task_history_repo.entries[0]
     assert entry.new_value is None
+
+
+# --- Fase 16 (hardening): limpeza física de anexos em delete() -----------------
+
+
+def test_delete_removes_physical_attachment_files(
+    task_service: TaskService, attachment_repo, tmp_path
+) -> None:
+    creator_id = uuid.uuid4()
+    task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
+    file_a = tmp_path / "a.pdf"
+    file_a.write_bytes(b"conteudo a")
+    file_b = tmp_path / "b.pdf"
+    file_b.write_bytes(b"conteudo b")
+    attachment_repo.seed(task.id, "a.pdf", "b.pdf")
+
+    task_service.delete(task)
+
+    assert not file_a.exists()
+    assert not file_b.exists()
+
+
+def test_delete_task_without_attachments_succeeds(task_service: TaskService) -> None:
+    creator_id = uuid.uuid4()
+    task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
+
+    task_service.delete(task)  # não deve levantar
+
+
+def test_delete_logs_error_without_failing_when_physical_removal_fails(
+    task_service: TaskService, attachment_repo, monkeypatch
+) -> None:
+    """research.md #12: falha ao remover o arquivo físico não impede a
+    exclusão (já commitada) nem propaga exceção ao chamador — mesmo padrão
+    de `AttachmentService.delete_attachment` (Fase 12)."""
+    creator_id = uuid.uuid4()
+    task = task_service.create(TaskCreate(title="Tarefa"), creator_id=creator_id)
+    attachment_repo.seed(task.id, "inexistente-mas-com-falha.pdf")
+
+    def _raise_os_error(_storage_path: str) -> None:
+        raise OSError("permissão negada")
+
+    monkeypatch.setattr(file_storage, "delete_file", _raise_os_error)
+
+    task_service.delete(task)  # não deve levantar
