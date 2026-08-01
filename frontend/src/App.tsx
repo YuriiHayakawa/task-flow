@@ -1,9 +1,15 @@
+import { BrowserRouter } from "react-router-dom";
+
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AppRoutes } from "@/routes";
+
 function App() {
   return (
-    <main>
-      <h1>TaskFlow</h1>
-      <p>Setup do frontend concluído — funcionalidades chegam nas próximas fases.</p>
-    </main>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
 
