@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     DUE_SOON_WINDOW_HOURS: int = 24
     DUE_SOON_LOCK_KEY: int = 918273645
 
+    ALLOWED_ORIGINS: str = "http://localhost:5173"
+
     @property
     def attachments_allowed_content_types_list(self) -> list[str]:
         return [
@@ -26,6 +28,10 @@ class Settings(BaseSettings):
             for content_type in self.ATTACHMENTS_ALLOWED_CONTENT_TYPES.split(",")
             if content_type.strip()
         ]
+
+    @property
+    def allowed_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()
