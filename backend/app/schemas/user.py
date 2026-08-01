@@ -54,7 +54,12 @@ class UserUpdate(BaseModel):
 
 
 class UserRead(BaseModel):
-    """Nunca expõe `password_hash` (Constitution: Schemas)."""
+    """Nunca expõe `password_hash` (Constitution: Schemas).
+
+    `is_system_admin` exposto aqui (Fase 17, frontend) para que o cliente
+    saiba se deve exibir a rota/seção exclusiva de System Admin — mesmo
+    padrão já usado para `is_active`: sempre lido do banco a cada resposta,
+    nunca embutido no JWT (`core/security.py`)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -62,4 +67,5 @@ class UserRead(BaseModel):
     name: str
     email: str
     is_active: bool
+    is_system_admin: bool
     created_at: datetime
