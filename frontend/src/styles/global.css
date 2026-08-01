@@ -137,3 +137,172 @@ body {
     @apply font-sans;
   }
 }
+
+/* Mini board kanban animado do BrandPanel (telas públicas) */
+@keyframes kanban-flow {
+  0%,
+  6% {
+    left: 16.6%;
+    opacity: 1;
+  }
+  28% {
+    left: 16.6%;
+    opacity: 1;
+  }
+  38% {
+    left: 50%;
+    opacity: 1;
+  }
+  60% {
+    left: 50%;
+    opacity: 1;
+  }
+  70% {
+    left: 83.3%;
+    opacity: 1;
+  }
+  92% {
+    left: 83.3%;
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+  }
+  100% {
+    left: 16.6%;
+    opacity: 0;
+  }
+}
+
+@keyframes kanban-highlight {
+  0%,
+  22%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+  11% {
+    box-shadow: 0 0 16px 1px rgba(96, 165, 250, 0.35);
+    border-color: rgba(96, 165, 250, 0.45);
+  }
+}
+
+.kanban-token {
+  animation: kanban-flow 9s ease-in-out infinite;
+}
+
+.kanban-highlight-1 {
+  animation: kanban-highlight 9s ease-in-out infinite;
+}
+
+.kanban-highlight-2 {
+  animation: kanban-highlight 9s ease-in-out infinite;
+  animation-delay: 3s;
+}
+
+.kanban-highlight-3 {
+  animation: kanban-highlight 9s ease-in-out infinite;
+  animation-delay: 6s;
+}
+
+@keyframes blob-drift-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(50px, -35px) scale(1.15);
+  }
+}
+
+@keyframes blob-drift-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-35px, 45px) scale(1.1);
+  }
+}
+
+@keyframes blob-drift-c {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(25px, 25px) scale(1.2);
+  }
+}
+
+@keyframes shine-sweep {
+  0% {
+    transform: translateX(-150%) skewX(-12deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.5;
+  }
+  32% {
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(450%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes float-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--float-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--float-rotate, 0deg));
+  }
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.blob-drift-a {
+  animation: blob-drift-a 16s ease-in-out infinite;
+}
+
+.blob-drift-b {
+  animation: blob-drift-b 20s ease-in-out infinite;
+}
+
+.blob-drift-c {
+  animation: blob-drift-c 13s ease-in-out infinite;
+}
+
+.shine-sweep {
+  animation: shine-sweep 7s ease-in-out infinite;
+}
+
+.float-bob {
+  animation: float-bob 5s ease-in-out infinite;
+}
+
+.orbit-ring {
+  animation: orbit-spin 12s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kanban-token,
+  .kanban-highlight-1,
+  .kanban-highlight-2,
+  .kanban-highlight-3,
+  .blob-drift-a,
+  .blob-drift-b,
+  .blob-drift-c,
+  .shine-sweep,
+  .float-bob,
+  .orbit-ring {
+    animation: none !important;
+  }
+}

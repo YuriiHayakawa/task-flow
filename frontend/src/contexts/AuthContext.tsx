@@ -7,12 +7,13 @@ import {
   type ReactNode,
 } from "react";
 
+import * as authService from "@/services/authService";
 import httpClient, {
   clearStoredToken,
   getStoredToken,
   setStoredToken,
 } from "@/services/httpClient";
-import type { TokenResponse, User } from "@/types/user";
+import type { User } from "@/types/user";
 
 interface AuthContextValue {
   user: User | null;
@@ -57,14 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const tokenResponse = await httpClient.post<TokenResponse>("/auth/login", {
-      email,
-      password,
-    });
-    setStoredToken(tokenResponse.data.access_token);
+    const tokenResponse = await authService.login({ email, password });
+    setStoredToken(tokenResponse.access_token);
 
     const meResponse = await httpClient.get<User>("/users/me");
-    setToken(tokenResponse.data.access_token);
+    setToken(tokenResponse.access_token);
     setUser(meResponse.data);
   }, []);
 

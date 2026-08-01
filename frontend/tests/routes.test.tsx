@@ -64,7 +64,7 @@ describe("guardas de rota", () => {
     renderAt("/dashboard");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument(),
     );
   });
 
@@ -132,7 +132,7 @@ describe("guardas de rota", () => {
     renderAt("/dashboard");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Login" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument(),
     );
     expect(getStoredToken()).toBeNull();
   });
