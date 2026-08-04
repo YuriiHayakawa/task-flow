@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthenticatedLayout } from "@/layouts/AuthenticatedLayout";
 import { PublicLayout } from "@/layouts/PublicLayout";
+import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
 import { RegisterPage } from "@/pages/RegisterPage";
@@ -75,7 +76,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<ComingSoon title="Dashboard" />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/workspaces" element={<ComingSoon title="Workspaces" />} />
         <Route path="/tasks" element={<PersonalTasksPage />} />
         <Route path="/notifications" element={<ComingSoon title="Notificações" />} />
