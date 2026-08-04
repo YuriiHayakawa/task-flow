@@ -306,3 +306,18 @@ body {
     animation: none !important;
   }
 }
+
+/* Identidade visual da sidebar autenticada — mesma linguagem azul/preto
+ * do BrandPanel (telas públicas), independente do tema claro/neutro do
+ * restante do app. Sobrescreve só as variáveis que o componente Sidebar
+ * já consome (bg-sidebar, sidebar-accent etc.), sem alterar o componente. */
+.sidebar-brand {
+  --sidebar: #05070f;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-accent: rgba(59, 130, 246, 0.16);
+  --sidebar-accent-foreground: #93c5fd;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #3b82f6;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+}
