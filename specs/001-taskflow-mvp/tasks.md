@@ -847,19 +847,19 @@ quais não é membro.
 
 **Purpose**: estrutura base do frontend — bloqueia todas as User Stories no frontend.
 
-- [ ] T120 [P] Criar `frontend/src/services/httpClient.ts` (instância Axios única, interceptor de
+- [x] T120 [P] Criar `frontend/src/services/httpClient.ts` (instância Axios única, interceptor de
   `Authorization: Bearer`, tratamento centralizado de erro incl. `ACCOUNT_DISABLED` → logout
   automático — `research.md` #15)
-- [ ] T121 [P] Criar `frontend/src/contexts/AuthContext.tsx` (estado de sessão: usuário atual, token,
+- [x] T121 [P] Criar `frontend/src/contexts/AuthContext.tsx` (estado de sessão: usuário atual, token,
   login/logout, `is_system_admin`) (depende de T120)
-- [ ] T122 [P] Criar `frontend/src/routes/index.tsx` (definição de rotas + guarda de rota
+- [x] T122 [P] Criar `frontend/src/routes/index.tsx` (definição de rotas + guarda de rota
   protegida, incl. rota exclusiva de System Admin) e os layouts
   `frontend/src/layouts/AuthenticatedLayout.tsx`/`frontend/src/layouts/PublicLayout.tsx` (depende de
   T121)
-- [ ] T123 [P] Criar `frontend/src/types/` espelhando os schemas de `contracts/` (`user.ts`,
+- [x] T123 [P] Criar `frontend/src/types/` espelhando os schemas de `contracts/` (`user.ts`,
   `workspace.ts`, `project.ts`, `task.ts`, `taskMember.ts`, `comment.ts`, `checklistItem.ts`,
   `attachment.ts`, `taskHistory.ts`, `notification.ts`, `dashboard.ts`, `apiError.ts`)
-- [ ] T124 Criar `frontend/src/App.tsx` e `frontend/src/main.tsx` (composição do `AuthContext`,
+- [x] T124 Criar `frontend/src/App.tsx` e `frontend/src/main.tsx` (composição do `AuthContext`,
   rotas e layout raiz) (depende de T122)
 
 **Checkpoint**: estrutura de navegação e autenticação do frontend prontas.
@@ -872,21 +872,23 @@ quais não é membro.
 
 ### Services & Hooks
 
-- [ ] T125 [P] [US1] Criar `frontend/src/services/authService.ts` e
+- [x] T125 [P] [US1] Criar `frontend/src/services/authService.ts` e
   `frontend/src/services/taskService.ts` (depende de T120, T123)
-- [ ] T126 [P] [US1] Criar `frontend/src/hooks/useAuth.ts` e
-  `frontend/src/hooks/usePersonalTasks.ts` (depende de T125, T121)
+- [x] T126 [P] [US1] Criar `frontend/src/hooks/useAuth.ts` e
+  `frontend/src/hooks/usePersonalTasks.ts` (depende de T125, T121) — `useAuth` implementado
+  dentro do próprio `AuthContext.tsx` (T121), não como arquivo separado, para não duplicar
+  estrutura já existente; `usePersonalTasks.ts` criado conforme especificado.
 
 ### Pages
 
-- [ ] T127 [US1] Criar `frontend/src/pages/LoginPage.tsx` e `frontend/src/pages/RegisterPage.tsx`
+- [x] T127 [US1] Criar `frontend/src/pages/LoginPage.tsx` e `frontend/src/pages/RegisterPage.tsx`
   (validação de UX apenas — backend é a autoridade) (depende de T126)
-- [ ] T128 [US1] Criar `frontend/src/pages/PersonalTasksPage.tsx` e componentes de formulário de
+- [x] T128 [US1] Criar `frontend/src/pages/PersonalTasksPage.tsx` e componentes de formulário de
   tarefa em `frontend/src/components/forms/TaskForm.tsx` (depende de T126)
 
 ### Testes
 
-- [ ] T129 [P] [US1] Testes de componente (Vitest + RTL) do formulário de login/cadastro e da lista
+- [x] T129 [P] [US1] Testes de componente (Vitest + RTL) do formulário de login/cadastro e da lista
   de tarefas pessoais em `frontend/tests/LoginForm.test.tsx` e
   `frontend/tests/PersonalTasksPage.test.tsx` (depende de T127, T128)
 
