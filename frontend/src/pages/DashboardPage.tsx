@@ -5,9 +5,11 @@ import {
   CheckCircle2,
   Circle,
   CircleDot,
+  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -58,12 +60,11 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-lg font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Resumo das suas tarefas pessoais e dos workspaces dos quais você participa.
-        </p>
-      </div>
+      <PageHeader
+        icon={LayoutDashboard}
+        title="Dashboard"
+        description="Resumo das suas tarefas pessoais e dos workspaces dos quais você participa."
+      />
 
       {isLoading && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

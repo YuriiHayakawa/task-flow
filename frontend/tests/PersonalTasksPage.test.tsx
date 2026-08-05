@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type {
   AxiosAdapter,
   AxiosResponse,
@@ -64,6 +64,22 @@ function fakeTaskBackend(initialTasks: Task[] = []): AxiosAdapter {
   };
 }
 
+/** Objeto mínimo compatível com a API `DataTransfer` usada pelo drag-and-drop
+ * nativo — jsdom não implementa `DataTransfer`, então simulamos só os dois
+ * métodos que o componente realmente usa (`setData`/`getData`). */
+function makeDataTransfer() {
+  const store = new Map<string, string>();
+  return {
+    setData: (format: string, data: string) => store.set(format, data),
+    getData: (format: string) => store.get(format) ?? "",
+    effectAllowed: "",
+  };
+}
+
+function getColumn(label: string): HTMLElement {
+  return screen.getByLabelText(`Coluna ${label}`);
+}
+
 describe("PersonalTasksPage", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -74,12 +90,12 @@ describe("PersonalTasksPage", () => {
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() =>
-      expect(screen.getByText(/ainda não tem tarefas pessoais/)).toBeInTheDocument(),
-    );
+    expect(
+      await screen.findByText(/ainda não tem tarefas pessoais/),
+    ).toBeInTheDocument();
   });
 
-  it("lista as tarefas existentes com status, prioridade e prazo", async () => {
+  it("distribui as tarefas nas colunas corretas com prioridade e prazo", async () => {
     httpClient.defaults.adapter = fakeTaskBackend([
       makeTask({
         title: "Comprar mantimentos",
@@ -87,14 +103,20 @@ describe("PersonalTasksPage", () => {
         priority: "HIGH",
         due_date: "2026-08-01",
       }),
+      makeTask({ title: "Revisar relatório", status: "IN_PROGRESS" }),
+      makeTask({ title: "Tarefa finalizada", status: "DONE" }),
     ]);
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() => expect(screen.getByText("Comprar mantimentos")).toBeInTheDocument());
-    expect(screen.getByText("Pendente")).toBeInTheDocument();
-    expect(screen.getByText("Alta")).toBeInTheDocument();
-    expect(screen.getByText(/01\/08\/2026/)).toBeInTheDocument();
+    await screen.findByText("Comprar mantimentos");
+
+    expect(within(getColumn("Pendente")).getByText("Comprar mantimentos")).toBeInTheDocument();
+    expect(within(getColumn("Em andamento")).getByText("Revisar relatório")).toBeInTheDocument();
+    expect(within(getColumn("Concluída")).getByText("Tarefa finalizada")).toBeInTheDocument();
+
+    expect(within(getColumn("Pendente")).getByText("Alta")).toBeInTheDocument();
+    expect(within(getColumn("Pendente")).getByText(/01\/08\/2026/)).toBeInTheDocument();
   });
 
   it("filtra tarefas de workspace, mostrando apenas as pessoais", async () => {
@@ -105,18 +127,16 @@ describe("PersonalTasksPage", () => {
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() => expect(screen.getByText("Tarefa pessoal")).toBeInTheDocument());
+    await screen.findByText("Tarefa pessoal");
     expect(screen.queryByText("Tarefa de workspace")).not.toBeInTheDocument();
   });
 
-  it("cria uma nova tarefa pessoal", async () => {
+  it("cria uma nova tarefa pessoal (entra na coluna Pendente)", async () => {
     httpClient.defaults.adapter = fakeTaskBackend([]);
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() =>
-      expect(screen.getByText(/ainda não tem tarefas pessoais/)).toBeInTheDocument(),
-    );
+    await screen.findByText(/ainda não tem tarefas pessoais/);
 
     fireEvent.click(screen.getByRole("button", { name: /Nova tarefa/ }));
     fireEvent.change(screen.getByLabelText("Título"), {
@@ -124,24 +144,26 @@ describe("PersonalTasksPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Criar tarefa" }));
 
-    await waitFor(() =>
-      expect(screen.getByText("Estudar para a prova")).toBeInTheDocument(),
-    );
+    await screen.findByText("Estudar para a prova");
+    expect(
+      within(getColumn("Pendente")).getByText("Estudar para a prova"),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Título")).not.toBeInTheDocument();
   });
 
-  it("marca uma tarefa como concluída pelo checkbox", async () => {
+  it("marca uma tarefa como concluída pelo checkbox (move para Concluída)", async () => {
     httpClient.defaults.adapter = fakeTaskBackend([
       makeTask({ title: "Lavar o carro", status: "PENDING" }),
     ]);
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() => expect(screen.getByText("Lavar o carro")).toBeInTheDocument());
+    await screen.findByText("Lavar o carro");
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Marcar como concluída" }));
 
-    await waitFor(() => expect(screen.getByText("Concluída")).toBeInTheDocument());
+    await within(getColumn("Concluída")).findByText("Lavar o carro");
+    expect(within(getColumn("Pendente")).queryByText("Lavar o carro")).not.toBeInTheDocument();
   });
 
   it("edita uma tarefa existente", async () => {
@@ -151,7 +173,7 @@ describe("PersonalTasksPage", () => {
 
     render(<PersonalTasksPage />);
 
-    await waitFor(() => expect(screen.getByText("Título antigo")).toBeInTheDocument());
+    await screen.findByText("Título antigo");
 
     fireEvent.click(screen.getByRole("button", { name: "Editar tarefa" }));
 
@@ -161,6 +183,31 @@ describe("PersonalTasksPage", () => {
     fireEvent.change(titleInput, { target: { value: "Título revisado" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
 
-    await waitFor(() => expect(screen.getByText("Título revisado")).toBeInTheDocument());
+    await screen.findByText("Título revisado");
+  });
+
+  it("move uma tarefa entre colunas ao arrastar e soltar", async () => {
+    httpClient.defaults.adapter = fakeTaskBackend([
+      makeTask({ title: "Preparar apresentação", status: "PENDING" }),
+    ]);
+
+    render(<PersonalTasksPage />);
+
+    await screen.findByText("Preparar apresentação");
+
+    const card = screen.getByText("Preparar apresentação").closest("[draggable]");
+    expect(card).not.toBeNull();
+
+    const dataTransfer = makeDataTransfer();
+    const targetColumn = getColumn("Em andamento");
+
+    fireEvent.dragStart(card as HTMLElement, { dataTransfer });
+    fireEvent.dragOver(targetColumn, { dataTransfer });
+    fireEvent.drop(targetColumn, { dataTransfer });
+
+    await within(getColumn("Em andamento")).findByText("Preparar apresentação");
+    expect(
+      within(getColumn("Pendente")).queryByText("Preparar apresentação"),
+    ).not.toBeInTheDocument();
   });
 });
