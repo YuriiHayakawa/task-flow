@@ -896,11 +896,11 @@ quais não é membro.
 
 ## Phase 19: Frontend — User Story 2: Dashboard Inicial (Priority: P1) 🎯 MVP
 
-- [ ] T130 [P] [US2] Criar `frontend/src/services/dashboardService.ts` (depende de T120, T123)
-- [ ] T131 [P] [US2] Criar `frontend/src/hooks/useDashboard.ts` (depende de T130)
-- [ ] T132 [US2] Criar `frontend/src/pages/DashboardPage.tsx` (contadores por status, destaque de
+- [x] T130 [P] [US2] Criar `frontend/src/services/dashboardService.ts` (depende de T120, T123)
+- [x] T131 [P] [US2] Criar `frontend/src/hooks/useDashboard.ts` (depende de T130)
+- [x] T132 [US2] Criar `frontend/src/pages/DashboardPage.tsx` (contadores por status, destaque de
   atrasadas/vencendo hoje) (depende de T131)
-- [ ] T133 [P] [US2] Teste de componente do dashboard (estado vazio, contagens) em
+- [x] T133 [P] [US2] Teste de componente do dashboard (estado vazio, contagens) em
   `frontend/tests/DashboardPage.test.tsx` (depende de T132)
 
 🎯 **Marco: Frontend MVP concluído** (US1 + US2 no frontend)
