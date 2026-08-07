@@ -15,3 +15,11 @@ export function create(payload: TaskCreate): Promise<Task> {
 export function update(taskId: string, payload: TaskUpdate): Promise<Task> {
   return httpClient.patch<Task>(`/tasks/${taskId}`, payload).then((response) => response.data);
 }
+
+export function get(taskId: string): Promise<Task> {
+  return httpClient.get<Task>(`/tasks/${taskId}`).then((response) => response.data);
+}
+
+export function remove(taskId: string): Promise<void> {
+  return httpClient.delete(`/tasks/${taskId}`).then(() => undefined);
+}

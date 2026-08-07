@@ -7,7 +7,11 @@ import { PublicLayout } from "@/layouts/PublicLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
+import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
+import { ProjectsPage } from "@/pages/ProjectsPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { TaskDetailPage } from "@/pages/TaskDetailPage";
+import { TaskFormPage } from "@/pages/TaskFormPage";
 import { WorkspaceDetailPage } from "@/pages/WorkspaceDetailPage";
 import { WorkspaceMembersPage } from "@/pages/WorkspaceMembersPage";
 import { WorkspacesPage } from "@/pages/WorkspacesPage";
@@ -83,7 +87,15 @@ export function AppRoutes() {
         <Route path="/workspaces" element={<WorkspacesPage />} />
         <Route path="/workspaces/:workspaceId" element={<WorkspaceDetailPage />} />
         <Route path="/workspaces/:workspaceId/members" element={<WorkspaceMembersPage />} />
+        <Route path="/workspaces/:workspaceId/projects" element={<ProjectsPage />} />
+        <Route
+          path="/workspaces/:workspaceId/projects/:projectId"
+          element={<ProjectDetailPage />}
+        />
         <Route path="/tasks" element={<PersonalTasksPage />} />
+        <Route path="/tasks/new" element={<TaskFormPage />} />
+        <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
+        <Route path="/tasks/:taskId/edit" element={<TaskFormPage />} />
         <Route path="/notifications" element={<ComingSoon title="Notificações" />} />
         <Route path="/profile" element={<ComingSoon title="Perfil" />} />
         <Route

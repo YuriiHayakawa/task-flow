@@ -22,6 +22,14 @@ export function useWorkspace(workspaceId: string): UseWorkspaceResult {
   const [error, setError] = useState<string | null>(null);
 
   const fetchWorkspace = useCallback(async () => {
+    // Guarda contra `workspaceId` ainda vazio (ex.: `TaskDetailPage` só sabe
+    // o workspace da tarefa depois que ela carrega) — evita uma requisição
+    // fadada a 404.
+    if (!workspaceId) {
+      setWorkspace(null);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
