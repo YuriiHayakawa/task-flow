@@ -1,9 +1,20 @@
 import { useState, type DragEvent } from "react";
-import { AlertTriangle, ListTodo, PencilIcon, PlusIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  CircleDot,
+  Flag,
+  GripVertical,
+  ListTodo,
+  PencilIcon,
+  PlusIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,27 +28,51 @@ import { usePersonalTasks } from "@/hooks/usePersonalTasks";
 import { cn } from "@/lib/utils";
 import type { Task, TaskCreate, TaskStatus, TaskUpdate } from "@/types/task";
 
-/** Mesma paleta de status usada no mockup do board kanban da tela de
- * login (`BrandPanel`) — fecha o círculo da identidade visual entre a
- * vitrine e o produto real. */
-const COLUMNS: { status: TaskStatus; label: string; dotClass: string; headerClass: string }[] = [
+/** Mesma linguagem visual do restante do produto: os ícones de status
+ * reaproveitam exatamente os do Dashboard (`Circle`/`CircleDot`/
+ * `CheckCircle2`), e a paleta reaproveita o mockup do board kanban da
+ * tela de login (`BrandPanel`) — cada coluna é uma "esteira" com
+ * identidade própria (tinta sutil de fundo, friso no topo, aro de
+ * destaque ao soltar um cartão), não apenas uma caixa neutra. */
+const COLUMNS: {
+  status: TaskStatus;
+  label: string;
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  columnTintClass: string;
+  accentClass: string;
+  countBadgeClass: string;
+  dropRingClass: string;
+}[] = [
   {
     status: "PENDING",
     label: "Pendente",
-    dotClass: "bg-slate-500",
-    headerClass: "bg-slate-50 dark:bg-slate-900/40",
+    icon: Circle,
+    iconWrapperClass: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    columnTintClass: "bg-slate-50/60 dark:bg-slate-900/10",
+    accentClass: "bg-slate-400",
+    countBadgeClass: "bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dropRingClass: "ring-slate-400",
   },
   {
     status: "IN_PROGRESS",
     label: "Em andamento",
-    dotClass: "bg-blue-500",
-    headerClass: "bg-blue-50 dark:bg-blue-950/30",
+    icon: CircleDot,
+    iconWrapperClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    columnTintClass: "bg-blue-50/50 dark:bg-blue-950/10",
+    accentClass: "bg-blue-500",
+    countBadgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    dropRingClass: "ring-blue-400",
   },
   {
     status: "DONE",
     label: "Concluída",
-    dotClass: "bg-emerald-500",
-    headerClass: "bg-emerald-50 dark:bg-emerald-950/30",
+    icon: CheckCircle2,
+    iconWrapperClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    columnTintClass: "bg-emerald-50/50 dark:bg-emerald-950/10",
+    accentClass: "bg-emerald-500",
+    countBadgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    dropRingClass: "ring-emerald-400",
   },
 ];
 
@@ -48,12 +83,13 @@ const PRIORITY_LABEL: Record<Task["priority"], string> = {
   URGENT: "Urgente",
 };
 
-const PRIORITY_BADGE_CLASS: Record<Task["priority"], string> = {
-  LOW: "border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400",
-  MEDIUM:
-    "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400",
-  HIGH: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400",
-  URGENT: "border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400",
+/** Chips sólidos (não apenas contorno) — mais vivos que o badge outline
+ * anterior, mesma paleta usada nos toggles de prioridade do `TaskForm`. */
+const PRIORITY_CHIP_CLASS: Record<Task["priority"], string> = {
+  LOW: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  MEDIUM: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  HIGH: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  URGENT: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
 };
 
 const PRIORITY_BORDER_CLASS: Record<Task["priority"], string> = {
@@ -68,10 +104,10 @@ interface DueInfo {
   tone: "neutral" | "warning" | "danger";
 }
 
-const DUE_TONE_CLASS: Record<DueInfo["tone"], string> = {
-  neutral: "text-muted-foreground",
-  warning: "text-amber-600 dark:text-amber-400",
-  danger: "text-destructive",
+const DUE_CHIP_CLASS: Record<DueInfo["tone"], string> = {
+  neutral: "bg-muted text-muted-foreground",
+  warning: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+  danger: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
 };
 
 /** Rótulo relativo e amigável de prazo — indicador de contexto no cartão,
@@ -92,6 +128,7 @@ function describeDueDate(dueDate: string, isDone: boolean): DueInfo {
 
 interface TaskCardProps {
   task: Task;
+  index: number;
   isDragging: boolean;
   onEdit: () => void;
   onToggleDone: () => void;
@@ -99,31 +136,34 @@ interface TaskCardProps {
   onDragEnd: () => void;
 }
 
-function TaskCard({ task, isDragging, onEdit, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
+function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
   const due = task.due_date ? describeDueDate(task.due_date, task.status === "DONE") : null;
+  const isDone = task.status === "DONE";
 
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      style={{ animationDelay: `${Math.min(index * 40, 200)}ms` }}
       className={cn(
-        "group flex cursor-grab flex-col gap-2 rounded-lg border border-l-4 bg-card p-3 shadow-sm transition-all hover:shadow-md active:cursor-grabbing",
+        "group animate-in fade-in slide-in-from-bottom-1 flex cursor-grab flex-col gap-2 rounded-xl border border-l-4 bg-card p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
         PRIORITY_BORDER_CLASS[task.priority],
-        isDragging && "opacity-40",
+        isDragging && "rotate-2 opacity-40 shadow-lg",
       )}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-1">
+        <GripVertical className="mt-1.5 size-3.5 shrink-0 text-transparent transition-colors group-hover:text-muted-foreground/40" />
         <Checkbox
-          checked={task.status === "DONE"}
+          checked={isDone}
           onCheckedChange={onToggleDone}
-          aria-label={task.status === "DONE" ? "Marcar como pendente" : "Marcar como concluída"}
+          aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
           className="mt-0.5"
         />
         <p
           className={cn(
             "flex-1 text-sm font-medium",
-            task.status === "DONE" && "text-muted-foreground line-through",
+            isDone && "text-muted-foreground line-through",
           )}
         >
           {task.title}
@@ -138,13 +178,28 @@ function TaskCard({ task, isDragging, onEdit, onToggleDone, onDragStart, onDragE
           <PencilIcon />
         </Button>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5 pl-6">
-        <Badge variant="outline" className={PRIORITY_BADGE_CLASS[task.priority]}>
+      <div className="flex flex-wrap items-center gap-1.5 pl-9">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+            PRIORITY_CHIP_CLASS[task.priority],
+          )}
+        >
+          <Flag className="size-2.5" />
           {PRIORITY_LABEL[task.priority]}
-        </Badge>
+        </span>
         {due && (
-          <span className={cn("flex items-center gap-1 text-xs", DUE_TONE_CLASS[due.tone])}>
-            {due.tone === "danger" && <AlertTriangle className="size-3" />}
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              DUE_CHIP_CLASS[due.tone],
+            )}
+          >
+            {due.tone === "danger" ? (
+              <AlertTriangle className="size-2.5" />
+            ) : (
+              <Calendar className="size-2.5" />
+            )}
             {due.label}
           </span>
         )}
@@ -156,8 +211,12 @@ function TaskCard({ task, isDragging, onEdit, onToggleDone, onDragStart, onDragE
 interface TaskColumnProps {
   status: TaskStatus;
   label: string;
-  dotClass: string;
-  headerClass: string;
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  columnTintClass: string;
+  accentClass: string;
+  countBadgeClass: string;
+  dropRingClass: string;
   tasks: Task[];
   draggingId: string | null;
   onEdit: (task: Task) => void;
@@ -170,8 +229,12 @@ interface TaskColumnProps {
 function TaskColumn({
   status,
   label,
-  dotClass,
-  headerClass,
+  icon: Icon,
+  iconWrapperClass,
+  columnTintClass,
+  accentClass,
+  countBadgeClass,
+  dropRingClass,
   tasks,
   draggingId,
   onEdit,
@@ -197,24 +260,40 @@ function TaskColumn({
         if (taskId) onDropTask(taskId, status);
       }}
       className={cn(
-        "flex min-h-64 flex-col gap-3 rounded-xl border p-3 transition-colors",
-        isOver ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20" : "border-border",
+        "relative flex min-h-64 flex-col gap-3 overflow-hidden rounded-2xl border p-3 pt-4 transition-all",
+        columnTintClass,
+        isOver ? cn("border-transparent ring-2", dropRingClass) : "border-border",
       )}
     >
-      <div className={cn("flex items-center gap-2 rounded-lg px-2.5 py-1.5", headerClass)}>
-        <span className={cn("size-2 rounded-full", dotClass)} />
+      <div className={cn("absolute inset-x-0 top-0 h-1", accentClass)} />
+
+      <div className="flex items-center gap-2">
+        <div className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconWrapperClass)}>
+          <Icon className="size-4" />
+        </div>
         <span className="text-sm font-semibold">{label}</span>
-        <span className="ml-auto text-xs text-muted-foreground">{tasks.length}</span>
+        <span
+          className={cn(
+            "ml-auto flex size-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+            countBadgeClass,
+          )}
+        >
+          {tasks.length}
+        </span>
       </div>
 
       <div className="flex flex-1 flex-col gap-2">
         {tasks.length === 0 && (
-          <p className="mt-4 text-center text-xs text-muted-foreground">Nenhuma tarefa aqui</p>
+          <div className="mt-6 flex flex-col items-center gap-1.5 text-center">
+            <Icon className="size-6 text-muted-foreground/25" strokeWidth={1.5} />
+            <p className="text-xs text-muted-foreground">Nenhuma tarefa aqui</p>
+          </div>
         )}
-        {tasks.map((task) => (
+        {tasks.map((task, index) => (
           <TaskCard
             key={task.id}
             task={task}
+            index={index}
             isDragging={draggingId === task.id}
             onEdit={() => onEdit(task)}
             onToggleDone={() => onToggleDone(task)}
@@ -340,8 +419,12 @@ export function PersonalTasksPage() {
               key={column.status}
               status={column.status}
               label={column.label}
-              dotClass={column.dotClass}
-              headerClass={column.headerClass}
+              icon={column.icon}
+              iconWrapperClass={column.iconWrapperClass}
+              columnTintClass={column.columnTintClass}
+              accentClass={column.accentClass}
+              countBadgeClass={column.countBadgeClass}
+              dropRingClass={column.dropRingClass}
               tasks={tasks.filter((task) => task.status === column.status)}
               draggingId={draggingId}
               onEdit={openEditForm}

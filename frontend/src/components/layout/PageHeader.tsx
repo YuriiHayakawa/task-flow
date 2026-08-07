@@ -1,4 +1,4 @@
-import { Workflow, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -11,18 +11,26 @@ interface PageHeaderProps {
 
 /** Cabeçalho padrão de tela — usado por todas as páginas autenticadas,
  * cada uma com seu próprio ícone/título/descrição e conteúdo extra
- * opcional. Base neutra e minimalista, com as mesmas camadas sutis de
- * identidade visual usadas no restante da marca (glow, marca d'água,
- * friso de gradiente) — sem virar um banner chamativo. */
+ * opcional. Base neutra (mesma superfície `card` usada no resto do app,
+ * não um bloco de cor à parte) com identidade visual entregue por
+ * textura, não por tinta: a mesma malha de pontos do `BrandPanel` (tela
+ * de login), esmaecida da direita para a esquerda para não competir com
+ * o título, mais o friso de gradiente e o badge do ícone já aprovados. */
 export function PageHeader({ icon: Icon, title, description, children }: PageHeaderProps) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-sky-200 bg-sky-100 p-6 shadow-sm dark:border-sky-900/40 dark:bg-sky-950/25">
+    <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600" />
-      <div className="pointer-events-none absolute -top-10 -right-10 size-40 rounded-full bg-sky-300/25 blur-2xl" />
-      <Workflow
-        className="pointer-events-none absolute -right-6 -bottom-10 size-36 rotate-12 text-sky-500/[0.08]"
-        strokeWidth={1}
+
+      {/* Malha de pontos — mesma textura do BrandPanel, esmaecida em
+       * direção ao título via máscara de gradiente. */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(37,99,235,0.14)_1px,transparent_0)] bg-[size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(96,165,250,0.16)_1px,transparent_0)]"
+        style={{
+          maskImage: "linear-gradient(to left, black, transparent 60%)",
+          WebkitMaskImage: "linear-gradient(to left, black, transparent 60%)",
+        }}
       />
+      <div className="pointer-events-none absolute -top-12 -right-12 size-44 rounded-full bg-blue-400/15 blur-3xl" />
 
       <div className="relative flex items-center gap-4">
         <div className="relative flex size-12 shrink-0 items-center justify-center">
