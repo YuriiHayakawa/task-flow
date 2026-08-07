@@ -1,8 +1,20 @@
-import { useState } from "react";
-import { PencilIcon, PlusIcon } from "lucide-react";
+import { useState, type DragEvent } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle2,
+  Circle,
+  CircleDot,
+  Flag,
+  GripVertical,
+  ListTodo,
+  PencilIcon,
+  PlusIcon,
+  type LucideIcon,
+} from "lucide-react";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
-import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,13 +25,56 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePersonalTasks } from "@/hooks/usePersonalTasks";
-import type { Task, TaskCreate, TaskUpdate } from "@/types/task";
+import { cn } from "@/lib/utils";
+import type { Task, TaskCreate, TaskStatus, TaskUpdate } from "@/types/task";
 
-const STATUS_LABEL: Record<Task["status"], string> = {
-  PENDING: "Pendente",
-  IN_PROGRESS: "Em andamento",
-  DONE: "Concluída",
-};
+/** Mesma linguagem visual do restante do produto: os ícones de status
+ * reaproveitam exatamente os do Dashboard (`Circle`/`CircleDot`/
+ * `CheckCircle2`), e a paleta reaproveita o mockup do board kanban da
+ * tela de login (`BrandPanel`) — cada coluna é uma "esteira" com
+ * identidade própria (tinta sutil de fundo, friso no topo, aro de
+ * destaque ao soltar um cartão), não apenas uma caixa neutra. */
+const COLUMNS: {
+  status: TaskStatus;
+  label: string;
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  columnTintClass: string;
+  accentClass: string;
+  countBadgeClass: string;
+  dropRingClass: string;
+}[] = [
+  {
+    status: "PENDING",
+    label: "Pendente",
+    icon: Circle,
+    iconWrapperClass: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    columnTintClass: "bg-slate-50/60 dark:bg-slate-900/10",
+    accentClass: "bg-slate-400",
+    countBadgeClass: "bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dropRingClass: "ring-slate-400",
+  },
+  {
+    status: "IN_PROGRESS",
+    label: "Em andamento",
+    icon: CircleDot,
+    iconWrapperClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    columnTintClass: "bg-blue-50/50 dark:bg-blue-950/10",
+    accentClass: "bg-blue-500",
+    countBadgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    dropRingClass: "ring-blue-400",
+  },
+  {
+    status: "DONE",
+    label: "Concluída",
+    icon: CheckCircle2,
+    iconWrapperClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    columnTintClass: "bg-emerald-50/50 dark:bg-emerald-950/10",
+    accentClass: "bg-emerald-500",
+    countBadgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    dropRingClass: "ring-emerald-400",
+  },
+];
 
 const PRIORITY_LABEL: Record<Task["priority"], string> = {
   LOW: "Baixa",
@@ -28,21 +83,234 @@ const PRIORITY_LABEL: Record<Task["priority"], string> = {
   URGENT: "Urgente",
 };
 
-const PRIORITY_VARIANT: Record<Task["priority"], "outline" | "secondary" | "destructive"> = {
-  LOW: "outline",
-  MEDIUM: "secondary",
-  HIGH: "destructive",
-  URGENT: "destructive",
+/** Chips sólidos (não apenas contorno) — mais vivos que o badge outline
+ * anterior, mesma paleta usada nos toggles de prioridade do `TaskForm`. */
+const PRIORITY_CHIP_CLASS: Record<Task["priority"], string> = {
+  LOW: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+  MEDIUM: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  HIGH: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
+  URGENT: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
 };
 
-function formatDueDate(dueDate: string): string {
-  return new Date(`${dueDate}T00:00:00`).toLocaleDateString("pt-BR");
+const PRIORITY_BORDER_CLASS: Record<Task["priority"], string> = {
+  LOW: "border-l-slate-300",
+  MEDIUM: "border-l-blue-400",
+  HIGH: "border-l-amber-400",
+  URGENT: "border-l-red-500",
+};
+
+interface DueInfo {
+  label: string;
+  tone: "neutral" | "warning" | "danger";
+}
+
+const DUE_CHIP_CLASS: Record<DueInfo["tone"], string> = {
+  neutral: "bg-muted text-muted-foreground",
+  warning: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
+  danger: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
+};
+
+/** Rótulo relativo e amigável de prazo — indicador de contexto no cartão,
+ * não a fonte oficial de "atrasada"/"vencendo hoje" (essa é o Dashboard,
+ * calculado no backend com `APP_TIMEZONE`). */
+function describeDueDate(dueDate: string, isDone: boolean): DueInfo {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(`${dueDate}T00:00:00`);
+  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+  const formatted = due.toLocaleDateString("pt-BR");
+
+  if (!isDone && diffDays < 0) return { label: `Atrasada · ${formatted}`, tone: "danger" };
+  if (diffDays === 0) return { label: "Vence hoje", tone: "warning" };
+  if (diffDays === 1) return { label: "Vence amanhã", tone: "neutral" };
+  return { label: formatted, tone: "neutral" };
+}
+
+interface TaskCardProps {
+  task: Task;
+  index: number;
+  isDragging: boolean;
+  onEdit: () => void;
+  onToggleDone: () => void;
+  onDragStart: (event: DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+}
+
+function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
+  const due = task.due_date ? describeDueDate(task.due_date, task.status === "DONE") : null;
+  const isDone = task.status === "DONE";
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      style={{ animationDelay: `${Math.min(index * 40, 200)}ms` }}
+      className={cn(
+        "group animate-in fade-in slide-in-from-bottom-1 flex cursor-grab flex-col gap-2 rounded-xl border border-l-4 bg-card p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
+        PRIORITY_BORDER_CLASS[task.priority],
+        isDragging && "rotate-2 opacity-40 shadow-lg",
+      )}
+    >
+      <div className="flex items-start gap-1">
+        <GripVertical className="mt-1.5 size-3.5 shrink-0 text-transparent transition-colors group-hover:text-muted-foreground/40" />
+        <Checkbox
+          checked={isDone}
+          onCheckedChange={onToggleDone}
+          aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
+          className="mt-0.5"
+        />
+        <p
+          className={cn(
+            "flex-1 text-sm font-medium",
+            isDone && "text-muted-foreground line-through",
+          )}
+        >
+          {task.title}
+        </p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onEdit}
+          aria-label="Editar tarefa"
+          className="opacity-0 transition-opacity group-hover:opacity-100"
+        >
+          <PencilIcon />
+        </Button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5 pl-9">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+            PRIORITY_CHIP_CLASS[task.priority],
+          )}
+        >
+          <Flag className="size-2.5" />
+          {PRIORITY_LABEL[task.priority]}
+        </span>
+        {due && (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              DUE_CHIP_CLASS[due.tone],
+            )}
+          >
+            {due.tone === "danger" ? (
+              <AlertTriangle className="size-2.5" />
+            ) : (
+              <Calendar className="size-2.5" />
+            )}
+            {due.label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface TaskColumnProps {
+  status: TaskStatus;
+  label: string;
+  icon: LucideIcon;
+  iconWrapperClass: string;
+  columnTintClass: string;
+  accentClass: string;
+  countBadgeClass: string;
+  dropRingClass: string;
+  tasks: Task[];
+  draggingId: string | null;
+  onEdit: (task: Task) => void;
+  onToggleDone: (task: Task) => void;
+  onDragStartTask: (taskId: string) => (event: DragEvent<HTMLDivElement>) => void;
+  onDragEndTask: () => void;
+  onDropTask: (taskId: string, status: TaskStatus) => void;
+}
+
+function TaskColumn({
+  status,
+  label,
+  icon: Icon,
+  iconWrapperClass,
+  columnTintClass,
+  accentClass,
+  countBadgeClass,
+  dropRingClass,
+  tasks,
+  draggingId,
+  onEdit,
+  onToggleDone,
+  onDragStartTask,
+  onDragEndTask,
+  onDropTask,
+}: TaskColumnProps) {
+  const [isOver, setIsOver] = useState(false);
+
+  return (
+    <div
+      aria-label={`Coluna ${label}`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setIsOver(true);
+      }}
+      onDragLeave={() => setIsOver(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsOver(false);
+        const taskId = event.dataTransfer.getData("text/plain");
+        if (taskId) onDropTask(taskId, status);
+      }}
+      className={cn(
+        "relative flex min-h-64 flex-col gap-3 overflow-hidden rounded-2xl border p-3 pt-4 transition-all",
+        columnTintClass,
+        isOver ? cn("border-transparent ring-2", dropRingClass) : "border-border",
+      )}
+    >
+      <div className={cn("absolute inset-x-0 top-0 h-1", accentClass)} />
+
+      <div className="flex items-center gap-2">
+        <div className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconWrapperClass)}>
+          <Icon className="size-4" />
+        </div>
+        <span className="text-sm font-semibold">{label}</span>
+        <span
+          className={cn(
+            "ml-auto flex size-5 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums",
+            countBadgeClass,
+          )}
+        >
+          {tasks.length}
+        </span>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2">
+        {tasks.length === 0 && (
+          <div className="mt-6 flex flex-col items-center gap-1.5 text-center">
+            <Icon className="size-6 text-muted-foreground/25" strokeWidth={1.5} />
+            <p className="text-xs text-muted-foreground">Nenhuma tarefa aqui</p>
+          </div>
+        )}
+        {tasks.map((task, index) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            index={index}
+            isDragging={draggingId === task.id}
+            onEdit={() => onEdit(task)}
+            onToggleDone={() => onToggleDone(task)}
+            onDragStart={onDragStartTask(task.id)}
+            onDragEnd={onDragEndTask}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function PersonalTasksPage() {
   const { tasks, isLoading, error, createTask, updateTask } = usePersonalTasks();
   const [formOpen, setFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   function openCreateForm() {
     setEditingTask(null);
@@ -74,88 +342,114 @@ export function PersonalTasksPage() {
     await updateTask(task.id, { status: task.status === "DONE" ? "PENDING" : "DONE" });
   }
 
+  function handleDragStartTask(taskId: string) {
+    return (event: DragEvent<HTMLDivElement>) => {
+      event.dataTransfer.setData("text/plain", taskId);
+      event.dataTransfer.effectAllowed = "move";
+      setDraggingId(taskId);
+    };
+  }
+
+  async function handleDropTask(taskId: string, status: TaskStatus) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (task && task.status !== status) {
+      await updateTask(taskId, { status });
+    }
+  }
+
+  const total = tasks.length;
+  const doneCount = tasks.filter((task) => task.status === "DONE").length;
+  const progressPercent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Minhas tarefas</h1>
-          <p className="text-sm text-muted-foreground">
-            Gerencie suas tarefas pessoais: crie, edite e acompanhe o status.
-          </p>
-        </div>
-        <Button onClick={openCreateForm}>
-          <PlusIcon />
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        icon={ListTodo}
+        title="Minhas tarefas"
+        description="Arraste os cartões entre as colunas para atualizar o status."
+      >
+        {!isLoading && !error && total > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-400 transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-xs font-medium text-muted-foreground">
+              {doneCount} de {total} concluídas ({progressPercent}%)
+            </span>
+          </div>
+        )}
+      </PageHeader>
+
+      <div className="flex justify-end">
+        <Button
+          onClick={openCreateForm}
+          className="h-10 gap-1.5 rounded-lg bg-blue-600 px-5 text-sm text-white shadow-sm shadow-blue-600/20 hover:bg-blue-500"
+        >
+          <PlusIcon className="size-4" />
           Nova tarefa
         </Button>
       </div>
 
       {isLoading && (
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
         </div>
       )}
 
       {!isLoading && error && <p className="text-sm text-destructive">{error}</p>}
 
       {!isLoading && !error && tasks.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Você ainda não tem tarefas pessoais. Crie a primeira clicando em &quot;Nova
-          tarefa&quot;.
-        </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
+          <p className="text-sm text-muted-foreground">
+            Você ainda não tem tarefas pessoais. Crie a primeira clicando em &quot;Nova
+            tarefa&quot;.
+          </p>
+        </div>
       )}
 
       {!isLoading && !error && tasks.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {tasks.map((task) => (
-            <li key={task.id} className="flex items-center gap-3 rounded-lg border p-3">
-              <Checkbox
-                checked={task.status === "DONE"}
-                onCheckedChange={() => toggleDone(task)}
-                aria-label={
-                  task.status === "DONE" ? "Marcar como pendente" : "Marcar como concluída"
-                }
-              />
-              <div className="flex-1">
-                <p
-                  className={
-                    task.status === "DONE"
-                      ? "text-sm font-medium text-muted-foreground line-through"
-                      : "text-sm font-medium"
-                  }
-                >
-                  {task.title}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline">{STATUS_LABEL[task.status]}</Badge>
-                  <Badge variant={PRIORITY_VARIANT[task.priority]}>
-                    {PRIORITY_LABEL[task.priority]}
-                  </Badge>
-                  {task.due_date && (
-                    <span className="text-xs text-muted-foreground">
-                      Prazo: {formatDueDate(task.due_date)}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => openEditForm(task)}
-                aria-label="Editar tarefa"
-              >
-                <PencilIcon />
-              </Button>
-            </li>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {COLUMNS.map((column) => (
+            <TaskColumn
+              key={column.status}
+              status={column.status}
+              label={column.label}
+              icon={column.icon}
+              iconWrapperClass={column.iconWrapperClass}
+              columnTintClass={column.columnTintClass}
+              accentClass={column.accentClass}
+              countBadgeClass={column.countBadgeClass}
+              dropRingClass={column.dropRingClass}
+              tasks={tasks.filter((task) => task.status === column.status)}
+              draggingId={draggingId}
+              onEdit={openEditForm}
+              onToggleDone={toggleDone}
+              onDragStartTask={handleDragStartTask}
+              onDragEndTask={() => setDraggingId(null)}
+              onDropTask={handleDropTask}
+            />
           ))}
-        </ul>
+        </div>
       )}
 
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{editingTask ? "Editar tarefa" : "Nova tarefa"}</SheetTitle>
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
+                {editingTask ? (
+                  <PencilIcon className="size-4 text-white" />
+                ) : (
+                  <PlusIcon className="size-4 text-white" />
+                )}
+              </div>
+              <SheetTitle>{editingTask ? "Editar tarefa" : "Nova tarefa"}</SheetTitle>
+            </div>
           </SheetHeader>
           <div className="px-4 pb-4">
             <TaskForm
