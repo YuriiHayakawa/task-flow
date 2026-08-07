@@ -911,15 +911,29 @@ quais não é membro.
 
 ## Phase 20: Frontend — User Story 3: Workspaces, Membros e Roles (Priority: P2)
 
-- [ ] T134 [P] [US3] Criar `frontend/src/services/workspaceService.ts` (depende de T120, T123)
-- [ ] T135 [P] [US3] Criar `frontend/src/hooks/useWorkspaces.ts` e
-  `frontend/src/hooks/useWorkspaceMembers.ts` (depende de T134)
-- [ ] T136 [US3] Criar `frontend/src/pages/WorkspacesPage.tsx`,
+- [x] T133b _(task de acompanhamento, não prevista originalmente)_ Criar
+  `GET /api/v1/users/lookup?email=...` no backend (`schemas/user.py`: `UserLookupRead`;
+  `services/user_service.py`: `lookup_by_email`; `routes/users.py`) — o contrato de
+  `POST /workspaces/{id}/members` (`contracts/workspaces.md`) já previa que a escolha entre
+  `user_id`/e-mail ficaria "a definir na fase de implementação"; o backend fixou `user_id`
+  (Fase 5) sem nenhuma rota que permitisse resolver um e-mail em `user_id`, tornando
+  "adicionar membro por e-mail" impossível de implementar no frontend sem essa peça.
+  Documentado em `contracts/auth-and-users.md`; 4 novos testes em
+  `backend/tests/integration/test_profile.py`; suíte completa do backend re-executada
+  (622/622 passando)
+- [x] T134 [P] [US3] Criar `frontend/src/services/workspaceService.ts` (depende de T120, T123)
+- [x] T135 [P] [US3] Criar `frontend/src/hooks/useWorkspaces.ts` e
+  `frontend/src/hooks/useWorkspaceMembers.ts` (depende de T134) — também criado
+  `frontend/src/hooks/useWorkspace.ts` (não previsto originalmente), necessário para
+  buscar um único workspace (incl. `my_role`) usado por `WorkspaceDetailPage` e
+  `WorkspaceMembersPage`
+- [x] T136 [US3] Criar `frontend/src/pages/WorkspacesPage.tsx`,
   `frontend/src/pages/WorkspaceDetailPage.tsx` e `frontend/src/pages/WorkspaceMembersPage.tsx`
   (ações condicionadas à role do usuário: promover/rebaixar/remover/transferir titularidade)
   (depende de T135)
-- [ ] T137 [P] [US3] Teste de componente da página de membros (visibilidade de ações por role) em
-  `frontend/tests/WorkspaceMembersPage.test.tsx` (depende de T136)
+- [x] T137 [P] [US3] Teste de componente da página de membros (visibilidade de ações por role) em
+  `frontend/tests/WorkspaceMembersPage.test.tsx` (depende de T136) — 4 cenários (Owner, Admin,
+  Member, e nenhuma ação sobre a própria linha do Owner)
 
 **Commit sugerido**: `feat(frontend): implementa workspaces, membros e roles (US3)`
 
