@@ -69,3 +69,17 @@ class UserRead(BaseModel):
     is_active: bool
     is_system_admin: bool
     created_at: datetime
+
+
+class UserLookupRead(BaseModel):
+    """Corpo de resposta de `GET /api/v1/users/lookup`
+    (contracts/auth-and-users.md) — projeção mínima e não sensível (sem
+    `is_active`/`is_system_admin`), usada só para resolver um e-mail em
+    `user_id` no fluxo de "adicionar membro" de um workspace
+    (`POST /workspaces/{id}/members` exige `user_id`, não e-mail)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    email: str

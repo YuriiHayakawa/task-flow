@@ -5,7 +5,7 @@ from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserRead, UserUpdate
+from app.schemas.user import UserLookupRead, UserRead, UserUpdate
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -13,6 +13,15 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(UserRepository(db))
+
+
+@router.get("/lookup", response_model=UserLookupRead)
+def lookup_user_by_email(
+    email: str,
+    current_user: User = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
+) -> User:
+    return service.lookup_by_email(email)
 
 
 @router.get("/me", response_model=UserRead)

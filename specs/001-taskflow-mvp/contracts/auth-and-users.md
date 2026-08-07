@@ -31,6 +31,28 @@ Administration), FR-051 a FR-054 (Users/Profile).
 
 ## Users / Profile (FR-051 a FR-054)
 
+### `GET /api/v1/users/lookup`
+
+> **Adicionado na fase de implementação do frontend de Workspaces (Fase 20)** — o
+> contrato de `POST /workspaces/{id}/members` (`contracts/workspaces.md`) já previa que
+> a escolha entre `user_id` e e-mail ficaria "a definir na fase de implementação"; o
+> backend implementado (Fase 5) fixou `user_id` como obrigatório, mas nenhuma rota
+> permitia a um usuário comum resolver um e-mail em `user_id` — sem isso, o fluxo real de
+> "adicionar membro por e-mail" era impossível de implementar no frontend. Este endpoint
+> fecha essa lacuna.
+
+- **Auth**: usuário autenticado (qualquer conta ativa — não é uma operação
+  administrativa; ver `_conventions.md`).
+- **Query**: `email` (obrigatório).
+- **Regras**: comparação case-insensitive (mesmo índice `lower(email)` de `get_by_email`/
+  `email_taken`, `research.md` #10). Retorna apenas dados mínimos e não sensíveis (`id`,
+  `name`, `email`) — nunca `is_active`/`is_system_admin`, para não vazar status de conta
+  de terceiros. Único propósito é viabilizar a resolução de `user_id` para
+  `POST /workspaces/{id}/members`; não é uma busca/listagem geral de usuários (essa
+  continua restrita ao System Admin via `GET /admin/users`).
+- **Respostas**: `200` (`UserLookupRead`: `id`, `name`, `email`) · `404` nenhum usuário
+  com este e-mail · `401` não autenticado.
+
 ### `GET /api/v1/users/me`
 
 - **Auth**: usuário autenticado.
