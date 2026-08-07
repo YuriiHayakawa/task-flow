@@ -5,6 +5,59 @@ Cobre: FR-051 a FR-054, contracts/auth-and-users.md
 (`GET/PATCH /users/me`)."""
 
 
+# --- GET /users/lookup (Fase 20 — suporte a "adicionar membro por e-mail") -------
+
+
+def test_lookup_by_email_returns_minimal_user_data(client, make_user, auth_headers):
+    caller = make_user()
+    target = make_user(name="Fulano de Tal", email="fulano-lookup@example.com")
+
+    response = client.get(
+        "/api/v1/users/lookup",
+        params={"email": "fulano-lookup@example.com"},
+        headers=auth_headers(caller),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"id": str(target.id), "name": "Fulano de Tal", "email": "fulano-lookup@example.com"}
+    assert "is_active" not in body
+    assert "is_system_admin" not in body
+
+
+def test_lookup_by_email_case_insensitive(client, make_user, auth_headers):
+    caller = make_user()
+    target = make_user(email="case-lookup@example.com")
+
+    response = client.get(
+        "/api/v1/users/lookup",
+        params={"email": "CASE-LOOKUP@EXAMPLE.COM"},
+        headers=auth_headers(caller),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == str(target.id)
+
+
+def test_lookup_by_email_not_found_returns_404(client, make_user, auth_headers):
+    caller = make_user()
+
+    response = client.get(
+        "/api/v1/users/lookup",
+        params={"email": "ninguem-aqui@example.com"},
+        headers=auth_headers(caller),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_lookup_by_email_requires_authentication(client):
+    response = client.get("/api/v1/users/lookup", params={"email": "qualquer@example.com"})
+
+    assert response.status_code == 401
+
+
 # --- GET /users/me -------------------------------------------------------------
 
 

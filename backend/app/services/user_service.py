@@ -1,4 +1,4 @@
-from app.core.exceptions import ConflictError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserUpdate
@@ -12,6 +12,16 @@ class UserService:
         self.db = user_repository.db
 
     def get_me(self, user: User) -> User:
+        return user
+
+    def lookup_by_email(self, email: str) -> User:
+        """`GET /users/lookup` (contracts/auth-and-users.md) — resolve um
+        e-mail para os dados mínimos de conta, único propósito é viabilizar
+        "adicionar membro por e-mail" em workspaces. Mesma comparação
+        case-insensitive de `get_by_email`/`email_taken` (research.md #10)."""
+        user = self.user_repository.get_by_email(email)
+        if user is None:
+            raise NotFoundError("Nenhum usuário encontrado com este e-mail.")
         return user
 
     def update_me(self, user: User, data: UserUpdate) -> User:
