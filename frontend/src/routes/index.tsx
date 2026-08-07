@@ -8,6 +8,9 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
 import { RegisterPage } from "@/pages/RegisterPage";
+import { WorkspaceDetailPage } from "@/pages/WorkspaceDetailPage";
+import { WorkspaceMembersPage } from "@/pages/WorkspaceMembersPage";
+import { WorkspacesPage } from "@/pages/WorkspacesPage";
 
 /** Placeholder temporário — substituído página a página nas Fases 18+. */
 function ComingSoon({ title }: { title: string }) {
@@ -77,7 +80,9 @@ export function AppRoutes() {
         }
       >
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/workspaces" element={<ComingSoon title="Workspaces" />} />
+        <Route path="/workspaces" element={<WorkspacesPage />} />
+        <Route path="/workspaces/:workspaceId" element={<WorkspaceDetailPage />} />
+        <Route path="/workspaces/:workspaceId/members" element={<WorkspaceMembersPage />} />
         <Route path="/tasks" element={<PersonalTasksPage />} />
         <Route path="/notifications" element={<ComingSoon title="Notificações" />} />
         <Route path="/profile" element={<ComingSoon title="Perfil" />} />

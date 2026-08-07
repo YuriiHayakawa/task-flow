@@ -32,3 +32,12 @@ export interface TokenResponse {
 export interface UserStatusUpdate {
   is_active: boolean;
 }
+
+/** Projeção mínima de `GET /users/lookup` (contracts/auth-and-users.md) —
+ * usada só para resolver um e-mail em `id` no fluxo de "adicionar membro"
+ * de um workspace; nunca inclui `is_active`/`is_system_admin`. */
+export interface UserLookup {
+  id: string;
+  name: string;
+  email: string;
+}
