@@ -941,16 +941,29 @@ quais não é membro.
 
 ## Phase 21: Frontend — User Story 4: Projetos e Tarefas de Equipe (Priority: P2)
 
-- [ ] T138 [P] [US4] Criar `frontend/src/services/projectService.ts`; estender
-  `frontend/src/services/taskService.ts` para tarefas de workspace/projeto (depende de T134, T125)
-- [ ] T139 [P] [US4] Criar `frontend/src/hooks/useProjects.ts`; estender
-  `frontend/src/hooks/useTasks.ts` (depende de T138)
-- [ ] T140 [US4] Criar `frontend/src/pages/ProjectsPage.tsx` e
+- [x] T138 [P] [US4] Criar `frontend/src/services/projectService.ts`; estender
+  `frontend/src/services/taskService.ts` para tarefas de workspace/projeto (depende de T134, T125) —
+  `taskService.ts` ganhou `get`/`remove` (antes só tinha `list`/`create`/`update`)
+- [x] T139 [P] [US4] Criar `frontend/src/hooks/useProjects.ts`; estender
+  `frontend/src/hooks/useTasks.ts` (depende de T138) — `useTasks.ts` criado do zero (não existia
+  ainda; `usePersonalTasks.ts` da Fase 18 é específico de tarefas pessoais). Também criados
+  `useProject.ts` e `useTask.ts` (recurso único), não previstos originalmente mas necessários para
+  `ProjectDetailPage`/`TaskDetailPage`
+- [x] T140 [US4] Criar `frontend/src/pages/ProjectsPage.tsx` e
   `frontend/src/pages/ProjectDetailPage.tsx` (criação de projeto restrita a Owner/Admin na UI,
-  refletindo a autoridade do backend) (depende de T139)
-- [ ] T141 [US4] Criar `frontend/src/pages/TaskDetailPage.tsx` e
+  refletindo a autoridade do backend) (depende de T139) — `WorkspaceDetailPage` ganhou o botão "Ver
+  projetos" no lugar do placeholder da Fase 20
+- [x] T141 [US4] Criar `frontend/src/pages/TaskDetailPage.tsx` e
   `frontend/src/pages/TaskFormPage.tsx` (criação/edição de tarefa de workspace/projeto) (depende de
-  T139)
+  T139) — `TaskDetailPage`/`TaskFormPage` espelham exatamente `require_task_editor`/
+  `require_task_delete` do backend (criador/responsável/Owner/Admin editam; responsável sozinho
+  não exclui). Teste de componente `TaskDetailPage.test.tsx` (4 cenários de visibilidade de ação,
+  não previsto originalmente). Bug real encontrado e corrigido durante verificação end-to-end: o
+  `Select` de responsável/projeto perdia o valor sincronizado da tarefa quando montado antes de
+  `members`/`projects` carregarem (Radix Select reseta `value` sem `SelectItem` correspondente) —
+  corrigido adiando a renderização do formulário até esses dados chegarem, e endurecidos
+  `useWorkspace`/`useWorkspaceMembers`/`useProjects`/`useProject`/`useTask` contra chamadas com id
+  vazio
 
 **Commit sugerido**: `feat(frontend): implementa projetos e tarefas de equipe (US4)`
 
