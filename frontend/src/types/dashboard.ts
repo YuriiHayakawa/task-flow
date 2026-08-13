@@ -9,3 +9,11 @@ export interface DashboardCounts {
 export interface DashboardSummary {
   counts: DashboardCounts;
 }
+
+/** Filtro de escopo opcional de `GET /dashboard` — no máximo um por vez
+ * (contracts/dashboard-and-notifications.md, seção "Escopo opcional"). */
+export interface DashboardScopeParams {
+  workspace_id?: string;
+  project_id?: string;
+  personal_only?: boolean;
+}

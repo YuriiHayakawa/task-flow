@@ -24,6 +24,32 @@ export const STATUS_BADGE_CLASS: Record<TaskStatus, string> = {
   DONE: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
 };
 
+/** Cor sólida (não o tint claro de `STATUS_BADGE_CLASS`) — mesmos tons do
+ * friso/ícone das colunas do board kanban (`PersonalTasksPage`), reaproveitada
+ * em qualquer gráfico de distribuição por status (ex.: Dashboard). */
+export const STATUS_ACCENT_CLASS: Record<TaskStatus, string> = {
+  PENDING: "bg-slate-400",
+  IN_PROGRESS: "bg-blue-500",
+  DONE: "bg-emerald-500",
+};
+
+/** Mesmos tons de `STATUS_ACCENT_CLASS`, como cor de texto/ícone —
+ * classes completas e estáticas (o JIT do Tailwind não detecta nomes de
+ * classe montados via template string em tempo de execução). */
+export const STATUS_ICON_COLOR_CLASS: Record<TaskStatus, string> = {
+  PENDING: "text-slate-500",
+  IN_PROGRESS: "text-blue-500",
+  DONE: "text-emerald-500",
+};
+
+/** Mesmos tons, como cor de traço de SVG (`stroke-*`) — usado no donut de
+ * distribuição por status do Dashboard. */
+export const STATUS_STROKE_CLASS: Record<TaskStatus, string> = {
+  PENDING: "stroke-slate-400",
+  IN_PROGRESS: "stroke-blue-500",
+  DONE: "stroke-emerald-500",
+};
+
 export const PRIORITY_LABEL: Record<TaskPriority, string> = {
   LOW: "Baixa",
   MEDIUM: "Média",

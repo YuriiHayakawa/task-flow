@@ -1,6 +1,8 @@
 import httpClient from "@/services/httpClient";
-import type { DashboardSummary } from "@/types/dashboard";
+import type { DashboardScopeParams, DashboardSummary } from "@/types/dashboard";
 
-export function getSummary(): Promise<DashboardSummary> {
-  return httpClient.get<DashboardSummary>("/dashboard").then((response) => response.data);
+export function getSummary(params: DashboardScopeParams = {}): Promise<DashboardSummary> {
+  return httpClient
+    .get<DashboardSummary>("/dashboard", { params })
+    .then((response) => response.data);
 }
