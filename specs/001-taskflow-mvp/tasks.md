@@ -1013,11 +1013,20 @@ quais não é membro.
 
 ## Phase 23: Frontend — User Story 6: Comentários em Tarefas (Priority: P2)
 
-- [ ] T145 [P] [US6] Criar `frontend/src/services/commentService.ts` (depende de T120, T123)
-- [ ] T146 [P] [US6] Criar `frontend/src/hooks/useComments.ts` (depende de T145)
-- [ ] T147 [US6] Adicionar seção de comentários em `frontend/src/pages/TaskDetailPage.tsx`
+- [x] T145 [P] [US6] Criar `frontend/src/services/commentService.ts` (depende de T120, T123)
+- [x] T146 [P] [US6] Criar `frontend/src/hooks/useComments.ts` (depende de T145)
+- [x] T147 [US6] Adicionar seção de comentários em `frontend/src/pages/TaskDetailPage.tsx`
   (formulário de novo comentário desabilitado para quem não é participante, listagem visível a
-  todos) (depende de T146, T141)
+  todos) (depende de T146, T141) — seção SEMPRE visível (ao contrário de Participantes, que só
+  existe em tarefa de workspace): `require_task_visible`/`require_task_participant`
+  (contracts/collaboration.md) permitem comentário em tarefa pessoal (só o criador, único
+  "participante" possível). `canComment` reaproveita a lista de `participants` já buscada pela
+  Fase 22 (o responsável já vem embutido nela como implícito) — Owner/Admin não ganham o direito
+  de comentar só pela role, exatamente como o backend. `CommentForm` local à página (não
+  extraído — usado uma única vez, ao contrário de `AddMemberByEmailForm`): campo/botão
+  desabilitados com dica do motivo em vez de a seção sumir. 4 novos testes em
+  `TaskDetailPage.test.tsx` (listagem, habilitado para participante, desabilitado para Member
+  comum, seção presente e habilitada em tarefa pessoal)
 
 **Commit sugerido**: `feat(frontend): implementa comentários em tarefas (US6)`
 
