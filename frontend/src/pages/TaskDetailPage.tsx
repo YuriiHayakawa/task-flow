@@ -7,11 +7,14 @@ import {
   ListTodo,
   PencilIcon,
   Trash2,
+  UserPlus,
   UserRound,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
+import { AddMemberByEmailForm } from "@/components/forms/AddMemberByEmailForm";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertDialog,
@@ -24,14 +27,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/hooks/useProject";
 import { useTask } from "@/hooks/useTask";
+import { useTaskMembers } from "@/hooks/useTaskMembers";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { cn } from "@/lib/utils";
+import * as userService from "@/services/userService";
+import { getApiErrorMessage } from "@/utils/apiErrorMessage";
+import { getInitials } from "@/utils/initials";
 import {
   PRIORITY_CHIP_CLASS,
   PRIORITY_LABEL,
@@ -39,6 +53,52 @@ import {
   STATUS_ICON,
   STATUS_LABEL,
 } from "@/utils/taskStyle";
+
+interface RemoveParticipantDialogProps {
+  name: string;
+  onConfirm: () => Promise<void>;
+}
+
+function RemoveParticipantDialog({ name, onConfirm }: RemoveParticipantDialogProps) {
+  const [error, setError] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  async function handleConfirm() {
+    setError(null);
+    setIsRemoving(true);
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Não foi possível remover este participante."));
+      setIsRemoving(false);
+    }
+  }
+
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Remover ${name}`}>
+          <Trash2 className="size-4 text-destructive" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover {name} da tarefa?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Comentários, anexos e histórico já existentes não são afetados.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRemoving}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirm} disabled={isRemoving} variant="destructive">
+            {isRemoving ? "Removendo..." : "Remover"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -49,9 +109,17 @@ export function TaskDetailPage() {
   const { workspace } = useWorkspace(isWorkspaceTask ? (task!.workspace_id as string) : "");
   const { members } = useWorkspaceMembers(isWorkspaceTask ? (task!.workspace_id as string) : "");
   const { project } = useProject(task?.project_id ?? "");
+  const {
+    members: participants,
+    isLoading: participantsLoading,
+    error: participantsError,
+    addMember: addParticipant,
+    removeMember: removeParticipant,
+  } = useTaskMembers(taskId ?? "");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [addParticipantOpen, setAddParticipantOpen] = useState(false);
 
   if (!taskId) {
     return <Navigate to="/workspaces" replace />;
@@ -94,6 +162,12 @@ export function TaskDetailPage() {
     } finally {
       setIsToggling(false);
     }
+  }
+
+  async function handleAddParticipant(email: string) {
+    const found = await userService.lookupByEmail(email);
+    await addParticipant({ user_id: found.id });
+    setAddParticipantOpen(false);
   }
 
   async function handleDelete() {
@@ -233,6 +307,94 @@ export function TaskDetailPage() {
           </AlertDialog>
         )}
       </div>
+
+      {isWorkspaceTask && (
+        <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+              <Users className="size-4 text-muted-foreground" />
+              Participantes
+            </h2>
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 rounded-lg"
+                onClick={() => setAddParticipantOpen(true)}
+              >
+                <UserPlus className="size-4" />
+                Adicionar
+              </Button>
+            )}
+          </div>
+
+          {participantsLoading && <Skeleton className="h-14 w-full rounded-xl" />}
+
+          {!participantsLoading && participantsError && (
+            <p className="text-sm text-destructive">{participantsError}</p>
+          )}
+
+          {!participantsLoading && !participantsError && (
+            <div className="flex flex-col gap-2">
+              {participants.map((participant) => {
+                const isTaskAssignee = participant.user_id === task.assignee_id;
+                return (
+                  <div
+                    key={participant.user_id}
+                    className="flex items-center gap-3 rounded-xl border p-2.5"
+                  >
+                    <Avatar size="sm" className="rounded-lg">
+                      <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
+                        {getInitials(participant.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {participant.name}
+                        {participant.user_id === currentUser?.id && (
+                          <span className="ml-1.5 text-xs text-muted-foreground">(você)</span>
+                        )}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{participant.email}</p>
+                    </div>
+                    {isTaskAssignee && (
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                        Responsável
+                      </span>
+                    )}
+                    {canEdit && !isTaskAssignee && (
+                      <RemoveParticipantDialog
+                        name={participant.name}
+                        onConfirm={() => removeParticipant(participant.user_id)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      <Sheet open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
+                <UserPlus className="size-4 text-white" />
+              </div>
+              <SheetTitle>Adicionar participante</SheetTitle>
+            </div>
+          </SheetHeader>
+          <div className="px-4 pb-4">
+            <AddMemberByEmailForm
+              onAdd={handleAddParticipant}
+              onCancel={() => setAddParticipantOpen(false)}
+              helperText="A pessoa precisa já ser membro do workspace desta tarefa."
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

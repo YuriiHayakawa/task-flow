@@ -62,7 +62,7 @@ function makeMembers(): WorkspaceMember[] {
   return [
     { user_id: CURRENT_USER_ID, name: "Usuário Atual", email: "atual@example.com", role: "MEMBER", joined_at: "2026-01-01T00:00:00Z" },
     { user_id: CREATOR_ID, name: "Criador", email: "criador@example.com", role: "OWNER", joined_at: "2026-01-01T00:00:00Z" },
-    { user_id: ASSIGNEE_ID, name: "Responsável", email: "responsavel@example.com", role: "MEMBER", joined_at: "2026-01-01T00:00:00Z" },
+    { user_id: ASSIGNEE_ID, name: "Bea Responsável", email: "responsavel@example.com", role: "MEMBER", joined_at: "2026-01-01T00:00:00Z" },
   ];
 }
 
@@ -83,6 +83,18 @@ function fakeAdapter(task: Task, myRole: WorkspaceRole): AxiosAdapter {
     if (method === "get" && url === `/workspaces/${WORKSPACE_ID}/members`) {
       const items = makeMembers();
       return Promise.resolve(ok({ items, page: 1, page_size: 20, total: items.length }, config));
+    }
+    if (method === "get" && url === `/tasks/${TASK_ID}/members`) {
+      // Só o responsável como participante implícito (added_at: null) —
+      // suficiente para estes testes, que focam em visibilidade de ação
+      // sobre a tarefa em si, não na lista de participantes.
+      const assignee = makeMembers().find((member) => member.user_id === task.assignee_id);
+      return Promise.resolve(
+        ok(
+          assignee ? [{ user_id: assignee.user_id, name: assignee.name, email: assignee.email, added_at: null }] : [],
+          config,
+        ),
+      );
     }
     return Promise.reject(new Error(`requisição inesperada: ${method} ${url}`));
   };
@@ -150,5 +162,48 @@ describe("TaskDetailPage — visibilidade de ações por posição do usuário",
     // em si, não só o título, para não checar antes dessa segunda busca.
     expect(await screen.findByRole("button", { name: "Editar" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Excluir" })).toBeInTheDocument();
+  });
+});
+
+describe("TaskDetailPage — seção de participantes (US5)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("lista o responsável como participante implícito, com a badge Responsável", async () => {
+    const task = makeTask({ creator_id: CURRENT_USER_ID, assignee_id: ASSIGNEE_ID });
+    renderPage(task, "OWNER");
+
+    await waitFor(() => expect(screen.getByText("Responsável")).toBeInTheDocument());
+    expect(screen.getAllByText("Responsável").length).toBeGreaterThan(0);
+  });
+
+  it("criador/Owner (pode editar): vê o botão de adicionar participante", async () => {
+    const task = makeTask({ creator_id: CURRENT_USER_ID, assignee_id: ASSIGNEE_ID });
+    renderPage(task, "OWNER");
+
+    await waitFor(() => expect(screen.getByText("Tarefa de teste")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Adicionar" })).toBeInTheDocument();
+  });
+
+  it("Member comum sem ser criador nem responsável: não vê botão de adicionar participante", async () => {
+    const task = makeTask({ creator_id: CREATOR_ID, assignee_id: ASSIGNEE_ID });
+    renderPage(task, "MEMBER");
+
+    await waitFor(() => expect(screen.getByText("Tarefa de teste")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Adicionar" })).not.toBeInTheDocument();
+  });
+
+  it("tarefa pessoal (sem workspace): não exibe a seção de participantes", async () => {
+    const task = makeTask({
+      creator_id: CURRENT_USER_ID,
+      assignee_id: CURRENT_USER_ID,
+      workspace_id: null,
+      project_id: null,
+    });
+    renderPage(task, "OWNER");
+
+    await waitFor(() => expect(screen.getByText("Tarefa de teste")).toBeInTheDocument());
+    expect(screen.queryByText("Participantes")).not.toBeInTheDocument();
   });
 });
