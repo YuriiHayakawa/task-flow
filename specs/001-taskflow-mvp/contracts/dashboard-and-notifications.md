@@ -36,6 +36,30 @@ Requisitos relacionados: FR-011, FR-039, FR-040, FR-047 a FR-050.
   (`research.md` #9) — uma tarefa aparece em no máximo um dos dois (nunca ambos).
 - Sem tarefas → todos os contadores `0` (nunca erro — US2, cenário 4).
 
+### Escopo opcional do resumo (`workspace_id` / `project_id` / `personal_only`)
+
+> **Adicionado após a US2/T065** — não previsto pela spec original (FR-047 a FR-050
+> descrevem apenas o resumo combinado). Motivado pelo pedido de um alternador de
+> contexto no Dashboard do frontend (pessoal / um workspace / um projeto específico).
+
+- **Query** (todos opcionais, no máximo um por requisição): `workspace_id` (UUID),
+  `project_id` (UUID), `personal_only` (bool).
+- Sem nenhum filtro → comportamento padrão inalterado (resumo combinado, FR-048).
+- `workspace_id` → contadores restritos às tarefas desse workspace (qualquer projeto ou
+  diretamente no workspace).
+- `project_id` → contadores restritos às tarefas desse projeto.
+- `personal_only=true` → contadores restritos às tarefas pessoais do próprio usuário
+  (`workspace_id IS NULL`).
+- **Autorização**: não há checagem dedicada — o filtro de escopo é aplicado **sobre** a
+  mesma visibilidade (`visible`) que já restringe o resumo aos workspaces dos quais o
+  usuário é membro (mesmo padrão de `GET /tasks` com filtros, US8). Um `workspace_id`/
+  `project_id` fora do alcance do usuário simplesmente devolve contadores zerados, sem
+  distinguir "não existe" de "existe mas não sou membro" (mesma convenção de
+  `_conventions.md`).
+- **Respostas**: `200` (`DashboardSummary`, mesmo formato, agora com contagem restrita) ·
+  `400` (`BUSINESS_RULE_VIOLATION`) se mais de um filtro de escopo for informado
+  simultaneamente · `422` se `workspace_id`/`project_id` não forem UUIDs válidos.
+
 ## Notifications
 
 ### `GET /api/v1/notifications`

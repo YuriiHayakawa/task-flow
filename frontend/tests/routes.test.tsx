@@ -75,7 +75,7 @@ describe("guardas de rota", () => {
     renderAt("/login");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
   });
 
@@ -86,7 +86,7 @@ describe("guardas de rota", () => {
     renderAt("/admin");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
   });
 
@@ -108,7 +108,7 @@ describe("guardas de rota", () => {
     renderAt("/dashboard");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
     expect(screen.getByRole("link", { name: /Administração/ })).toBeInTheDocument();
   });
@@ -120,7 +120,7 @@ describe("guardas de rota", () => {
     renderAt("/dashboard");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
     expect(screen.queryByRole("link", { name: /Administração/ })).not.toBeInTheDocument();
   });

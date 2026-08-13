@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, PencilIcon, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Building2, FolderKanban, PencilIcon, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -108,6 +108,14 @@ export function WorkspaceDetailPage() {
             <Button
               variant="outline"
               className="gap-1.5 rounded-lg"
+              onClick={() => navigate(`/workspaces/${workspace.id}/projects`)}
+            >
+              <FolderKanban className="size-4" />
+              Ver projetos
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-1.5 rounded-lg"
               onClick={() => navigate(`/workspaces/${workspace.id}/members`)}
             >
               <Users className="size-4" />
@@ -157,12 +165,6 @@ export function WorkspaceDetailPage() {
                 </AlertDialog>
               </>
             )}
-          </div>
-
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-14 text-center">
-            <p className="text-sm text-muted-foreground">
-              Projetos e tarefas deste workspace chegam na próxima fase.
-            </p>
           </div>
 
           <Sheet open={editOpen} onOpenChange={setEditOpen}>

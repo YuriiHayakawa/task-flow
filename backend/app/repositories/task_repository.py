@@ -67,27 +67,47 @@ class TaskRepository:
         creator_id: uuid.UUID,
         workspace_ids: Sequence[uuid.UUID],
         today: date,
+        scope_workspace_id: uuid.UUID | None = None,
+        scope_project_id: uuid.UUID | None = None,
+        personal_only: bool = False,
     ) -> dict[str, int]:
         """Contagens do dashboard (FR-047 a FR-050): tarefas pessoais do
         próprio usuário + tarefas dos workspaces em `workspace_ids` (vazio até
         a US3/US4 ativarem a união em T065 — esta consulta não muda, só passa
         a receber uma lista não vazia). "Atrasada"/"vencendo hoje" usam
         `today` já calculado na timezone da aplicação pelo chamador
-        (research.md #9), nunca `CURRENT_DATE` do banco (que seria UTC)."""
+        (research.md #9), nunca `CURRENT_DATE` do banco (que seria UTC).
+
+        `scope_workspace_id`/`scope_project_id`/`personal_only` (dashboard com
+        escopo — não previstos nas Fases 4/US2 originais) apenas ESTREITAM
+        `visible` com um `AND` adicional, mesmo padrão já documentado em
+        `search()` abaixo: filtrar por um workspace/projeto do qual o usuário
+        não é membro simplesmente não retorna nada, porque já está fora de
+        `visible` — nenhuma checagem de autorização separada é necessária
+        aqui (a mutualexclusividade entre os três é responsabilidade do
+        Service, não desta consulta)."""
         visible = or_(
             and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
             Task.workspace_id.in_(workspace_ids) if workspace_ids else false(),
         )
+        conditions: list[ColumnElement[bool]] = [visible]
+        if personal_only:
+            conditions.append(Task.workspace_id.is_(None))
+        if scope_workspace_id is not None:
+            conditions.append(Task.workspace_id == scope_workspace_id)
+        if scope_project_id is not None:
+            conditions.append(Task.project_id == scope_project_id)
+        scoped = and_(*conditions)
         active = active_task_filter()
 
         stmt = select(
-            func.count().filter(visible, Task.status == TaskStatus.PENDING).label("pending"),
+            func.count().filter(scoped, Task.status == TaskStatus.PENDING).label("pending"),
             func.count()
-            .filter(visible, Task.status == TaskStatus.IN_PROGRESS)
+            .filter(scoped, Task.status == TaskStatus.IN_PROGRESS)
             .label("in_progress"),
-            func.count().filter(visible, Task.status == TaskStatus.DONE).label("done"),
-            func.count().filter(visible, active, Task.due_date < today).label("overdue"),
-            func.count().filter(visible, active, Task.due_date == today).label("due_today"),
+            func.count().filter(scoped, Task.status == TaskStatus.DONE).label("done"),
+            func.count().filter(scoped, active, Task.due_date < today).label("overdue"),
+            func.count().filter(scoped, active, Task.due_date == today).label("due_today"),
         )
         row = self.db.execute(stmt).one()
         return {

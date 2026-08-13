@@ -2,16 +2,16 @@ import axios from "axios";
 import {
   ArrowLeft,
   ArrowLeftRight,
-  Mail,
   ShieldCheck,
   ShieldMinus,
   Trash2,
   UserPlus,
   Users,
 } from "lucide-react";
-import { useState, type SubmitEvent } from "react";
+import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
+import { AddMemberByEmailForm } from "@/components/forms/AddMemberByEmailForm";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertDialog,
@@ -26,8 +26,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -43,80 +41,8 @@ import * as userService from "@/services/userService";
 import type { ApiError } from "@/types/apiError";
 import type { WorkspaceMember } from "@/types/workspace";
 import { getApiErrorMessage } from "@/utils/apiErrorMessage";
+import { getInitials } from "@/utils/initials";
 import { ROLE_BADGE_CLASS, ROLE_ICON, ROLE_LABEL } from "@/utils/workspaceRole";
-
-function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-  return (parts[0]![0] + parts[parts.length - 1]![0]).toUpperCase();
-}
-
-interface AddMemberFormProps {
-  onAdd: (email: string) => Promise<void>;
-  onCancel: () => void;
-}
-
-/** Formulário de um único campo — não vale a pena extrair para
- * `components/forms/`, dado o fluxo específico de duas etapas (resolver
- * e-mail → `user_id`, depois adicionar) que só faz sentido aqui. */
-function AddMemberForm({ onAdd, onCancel }: AddMemberFormProps) {
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  async function handleSubmit(event: SubmitEvent) {
-    event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await onAdd(email);
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Não foi possível adicionar este membro."));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="member-email">E-mail</Label>
-        <div className="relative">
-          <Mail className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="member-email"
-            type="email"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="h-11 rounded-xl pl-9"
-            placeholder="pessoa@empresa.com"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          A pessoa entra como Member — promover a Admin é uma ação separada.
-        </p>
-      </div>
-
-      {error && <p className="text-sm text-destructive">{error}</p>}
-
-      <div className="mt-2 flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="rounded-xl">
-          Cancelar
-        </Button>
-        <Button
-          type="submit"
-          disabled={isSubmitting || email.trim() === ""}
-          className="rounded-xl bg-blue-600 text-white hover:bg-blue-500"
-        >
-          <UserPlus className="size-4" />
-          {isSubmitting ? "Adicionando..." : "Adicionar"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 interface RemoveMemberDialogProps {
   member: WorkspaceMember;
@@ -397,7 +323,11 @@ export function WorkspaceMembersPage() {
             </div>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <AddMemberForm onAdd={handleAddMember} onCancel={() => setAddOpen(false)} />
+            <AddMemberByEmailForm
+              onAdd={handleAddMember}
+              onCancel={() => setAddOpen(false)}
+              helperText="A pessoa entra como Member — promover a Admin é uma ação separada."
+            />
           </div>
         </SheetContent>
       </Sheet>

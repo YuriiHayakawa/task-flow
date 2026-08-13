@@ -5,6 +5,7 @@ Cobre: FR-047 a FR-050, FR-011, research.md #7/#9, spec.md US2 (cenários 1-5;
 o cenário 6 — combinar com tarefas de workspace — ativado pela T065/US3,
 testado ao final deste arquivo)."""
 
+import uuid
 from datetime import timedelta
 
 from app.enums.task_status import TaskStatus
@@ -138,6 +139,117 @@ def test_dashboard_still_excludes_tasks_from_workspaces_user_does_not_belong_to(
     make_task(creator=other_owner, workspace=other_workspace, status=TaskStatus.PENDING)
 
     response = client.get("/api/v1/dashboard", headers=auth_headers(user))
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 0
+
+
+# --- Escopo opcional (workspace_id/project_id/personal_only) — não previsto na US2 ---
+# Adicionado após pedido de alternador de contexto no Dashboard do frontend.
+
+
+def test_dashboard_scoped_to_workspace_excludes_personal_and_other_workspaces(
+    client, make_user, make_workspace, add_workspace_member, make_task, auth_headers
+):
+    user = make_user()
+    owner = make_user(email="ws-owner-scope1@example.com")
+    workspace = make_workspace(owner=owner, name="Workspace A")
+    other_workspace = make_workspace(owner=owner, name="Workspace B")
+    add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
+    add_workspace_member(workspace=other_workspace, user=user, role=WorkspaceRole.MEMBER)
+
+    make_task(creator=user, title="Pessoal", status=TaskStatus.PENDING)
+    make_task(creator=owner, assignee=user, workspace=workspace, title="Do A", status=TaskStatus.PENDING)
+    make_task(
+        creator=owner, assignee=user, workspace=other_workspace, title="Do B", status=TaskStatus.PENDING
+    )
+
+    response = client.get(
+        "/api/v1/dashboard", params={"workspace_id": str(workspace.id)}, headers=auth_headers(user)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 1
+
+
+def test_dashboard_scoped_to_project_excludes_other_projects_and_direct_workspace_tasks(
+    client, make_user, make_workspace, add_workspace_member, make_project, make_task, auth_headers
+):
+    user = make_user()
+    owner = make_user(email="ws-owner-scope2@example.com")
+    workspace = make_workspace(owner=owner, name="Workspace com dois projetos")
+    add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
+    project_a = make_project(workspace=workspace, name="Projeto A")
+    project_b = make_project(workspace=workspace, name="Projeto B")
+
+    make_task(
+        creator=owner, assignee=user, workspace=workspace, project=project_a, title="Da A", status=TaskStatus.PENDING
+    )
+    make_task(
+        creator=owner, assignee=user, workspace=workspace, project=project_b, title="Da B", status=TaskStatus.PENDING
+    )
+    make_task(
+        creator=owner, assignee=user, workspace=workspace, title="Direto no workspace", status=TaskStatus.PENDING
+    )
+
+    response = client.get(
+        "/api/v1/dashboard", params={"project_id": str(project_a.id)}, headers=auth_headers(user)
+    )
+
+    assert response.status_code == 200
+    assert response.json()["counts"]["pending"] == 1
+
+
+def test_dashboard_scoped_to_personal_only_excludes_workspace_tasks(
+    client, make_user, make_workspace, add_workspace_member, make_task, auth_headers
+):
+    user = make_user()
+    owner = make_user(email="ws-owner-scope3@example.com")
+    workspace = make_workspace(owner=owner, name="Workspace")
+    add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
+
+    make_task(creator=user, title="Pessoal 1", status=TaskStatus.PENDING)
+    make_task(creator=user, title="Pessoal 2", status=TaskStatus.DONE)
+    make_task(creator=owner, assignee=user, workspace=workspace, title="Do workspace", status=TaskStatus.PENDING)
+
+    response = client.get(
+        "/api/v1/dashboard", params={"personal_only": "true"}, headers=auth_headers(user)
+    )
+
+    assert response.status_code == 200
+    counts = response.json()["counts"]
+    assert counts["pending"] == 1
+    assert counts["done"] == 1
+
+
+def test_dashboard_scope_rejects_more_than_one_filter_at_once(client, make_user, auth_headers):
+    user = make_user()
+
+    response = client.get(
+        "/api/v1/dashboard",
+        params={"workspace_id": str(uuid.uuid4()), "personal_only": "true"},
+        headers=auth_headers(user),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
+
+
+def test_dashboard_scoped_to_workspace_user_is_not_member_of_returns_zero(
+    client, make_user, make_workspace, make_task, auth_headers
+):
+    """Mesma convenção de `GET /tasks` com filtros (US8): um workspace fora do
+    alcance do usuário não gera erro, só devolve contadores zerados."""
+    user = make_user()
+    other_owner = make_user(email="unrelated-owner-scope@example.com")
+    other_workspace = make_workspace(owner=other_owner, name="Workspace alheio")
+    make_task(creator=other_owner, workspace=other_workspace, status=TaskStatus.PENDING)
+
+    response = client.get(
+        "/api/v1/dashboard",
+        params={"workspace_id": str(other_workspace.id)},
+        headers=auth_headers(user),
+    )
 
     assert response.status_code == 200
     assert response.json()["counts"]["pending"] == 0

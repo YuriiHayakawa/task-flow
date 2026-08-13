@@ -31,6 +31,15 @@ export function useWorkspaceMembers(workspaceId: string): UseWorkspaceMembersRes
   const [error, setError] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async () => {
+    // Guarda contra `workspaceId` ainda vazio (ex.: telas que só descobrem
+    // o workspace de forma assíncrona, como `TaskFormPage` em modo de
+    // edição) — evita uma requisição fadada a 404 e, mais importante, evita
+    // um `isLoading=false` prematuro com `members` ainda vazio.
+    if (!workspaceId) {
+      setMembers([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
