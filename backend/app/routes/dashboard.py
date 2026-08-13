@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -18,7 +20,15 @@ def get_dashboard_service(db: Session = Depends(get_db)) -> DashboardService:
 
 @router.get("", response_model=DashboardSummary)
 def get_dashboard(
+    workspace_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    personal_only: bool = False,
     current_user: User = Depends(get_current_user),
     service: DashboardService = Depends(get_dashboard_service),
 ) -> DashboardSummary:
-    return service.get_summary(current_user.id)
+    return service.get_summary(
+        current_user.id,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        personal_only=personal_only,
+    )
