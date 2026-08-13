@@ -325,6 +325,15 @@ retorna contagens corretas; usuário sem tarefas recebe zeros; tarefas de tercei
 
 - [x] T051 [US2] Criar `backend/app/routes/dashboard.py` (`GET /api/v1/dashboard`) e registrar o
   router em `backend/app/main.py` (depende de T050, T034)
+- [x] T051b _(task de acompanhamento, não prevista originalmente)_ Estender `GET /api/v1/dashboard`
+  com escopo opcional (`workspace_id`/`project_id`/`personal_only`, no máximo um por vez) — pedido
+  do produto para viabilizar um alternador pessoal/workspace/projeto no Dashboard do frontend (Fase
+  19). `TaskRepository.count_by_status` ganhou os três parâmetros opcionais, aplicados como `AND`
+  adicional sobre a mesma visibilidade (`visible`) já usada em `search()` — um workspace/projeto fora
+  do alcance do usuário simplesmente devolve contadores zerados, sem checagem de autorização
+  separada. `DashboardService.get_summary` rejeita mais de um filtro simultâneo (400). Documentado em
+  `contracts/dashboard-and-notifications.md`; 5 novos testes em `test_dashboard.py`. Comportamento
+  padrão (sem filtro) inalterado — FR-047 a FR-050 continuam satisfeitos exatamente como antes
 
 **Checkpoint**: US1 e US2 funcionam de forma independente (MVP mínimo completo).
 
@@ -902,6 +911,21 @@ quais não é membro.
   atrasadas/vencendo hoje) (depende de T131)
 - [x] T133 [P] [US2] Teste de componente do dashboard (estado vazio, contagens) em
   `frontend/tests/DashboardPage.test.tsx` (depende de T132)
+- [x] T133c _(task de acompanhamento, não prevista originalmente)_ Redesenho completo de
+  `DashboardPage.tsx` — pedido explícito do usuário ("ficou horrível", com referências visuais de
+  admin dashboard) mais o alternador pessoal/workspace/projeto (consumindo o escopo opcional de
+  T051b): saudação personalizada (nome + saudação por horário), cards de KPI em gradiente por
+  status/atrasada/vencendo hoje, donut de distribuição por status (SVG feito à mão, sem biblioteca de
+  gráficos) com legenda, estado vazio e de "aguardando seleção" (Workspace/Projeto sem nada
+  escolhido ainda). Metodologia do skill de dataviz aplicada (forma → cor → validação): paleta
+  categórica (slate/blue/emerald, já usada no board kanban) validada com
+  `scripts/validate_palette.js` — separação por daltonismo passa com folga (ΔE 16); o tom neutro do
+  "pendente" fica abaixo do piso de "croma" do validador de propósito (é o cinza neutro já
+  estabelecido em todo o app), mitigado por rótulos diretos na legenda. `taskStyle.ts` ganhou
+  `STATUS_ACCENT_CLASS`/`STATUS_ICON_COLOR_CLASS`/`STATUS_STROKE_CLASS` (reaproveitando os mesmos
+  tons do board kanban). Testes de `DashboardPage.test.tsx` reescritos (7 casos, incl. o alternador
+  de escopo); 4 asserções de `routes.test.tsx` ajustadas (dependiam do texto fixo "Dashboard" no
+  heading, agora a saudação)
 
 🎯 **Marco: Frontend MVP concluído** (US1 + US2 no frontend)
 
@@ -971,11 +995,17 @@ quais não é membro.
 
 ## Phase 22: Frontend — User Story 5: Participantes de Tarefa (Priority: P2)
 
-- [ ] T142 [P] [US5] Criar `frontend/src/services/taskMemberService.ts` (depende de T120, T123)
-- [ ] T143 [P] [US5] Criar `frontend/src/hooks/useTaskMembers.ts` (depende de T142)
-- [ ] T144 [US5] Adicionar seção de participantes em `frontend/src/pages/TaskDetailPage.tsx`
+- [x] T142 [P] [US5] Criar `frontend/src/services/taskMemberService.ts` (depende de T120, T123)
+- [x] T143 [P] [US5] Criar `frontend/src/hooks/useTaskMembers.ts` (depende de T142)
+- [x] T144 [US5] Adicionar seção de participantes em `frontend/src/pages/TaskDetailPage.tsx`
   (listar, adicionar, remover — ações visíveis apenas para criador/responsável/Owner/Admin) (depende
-  de T143, T141)
+  de T143, T141) — visibilidade reaproveita exatamente `canEdit` (já calculado para editar/concluir a
+  tarefa), sem duplicar a regra. Extraído `components/forms/AddMemberByEmailForm.tsx` (agora
+  reaproveitado por `WorkspaceMembersPage` e `TaskDetailPage` — mesmo fluxo de resolver e-mail →
+  `user_id`) e `utils/initials.ts` (idem). 4 novos testes em `TaskDetailPage.test.tsx` (badge de
+  Responsável, botão Adicionar visível/oculto por permissão, seção ausente em tarefa pessoal).
+  Verificado end-to-end via Playwright (adicionar, erro de duplicidade, remover de verdade, visão
+  read-only de Member comum), sem erros de console
 
 **Commit sugerido**: `feat(frontend): implementa participantes de tarefa (US5)`
 
