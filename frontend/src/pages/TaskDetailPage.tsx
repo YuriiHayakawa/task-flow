@@ -5,13 +5,15 @@ import {
   CheckCircle2,
   FolderKanban,
   ListTodo,
+  MessageSquare,
   PencilIcon,
+  Send,
   Trash2,
   UserPlus,
   UserRound,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type SubmitEvent } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { AddMemberByEmailForm } from "@/components/forms/AddMemberByEmailForm";
@@ -36,7 +38,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { useComments } from "@/hooks/useComments";
 import { useProject } from "@/hooks/useProject";
 import { useTask } from "@/hooks/useTask";
 import { useTaskMembers } from "@/hooks/useTaskMembers";
@@ -100,6 +104,65 @@ function RemoveParticipantDialog({ name, onConfirm }: RemoveParticipantDialogPro
   );
 }
 
+interface CommentFormProps {
+  disabled: boolean;
+  onSubmit: (content: string) => Promise<void>;
+}
+
+/** Formulário de um único campo (conteúdo) — não reaproveitado em nenhuma
+ * outra tela, ao contrário de `AddMemberByEmailForm`, então fica local a
+ * esta página. Permanece visível mesmo quando `disabled` (não é
+ * participante) — só o campo/botão ficam desabilitados, com uma dica do
+ * motivo, em vez de a seção sumir por completo (listagem continua visível a
+ * todo membro do workspace, contracts/collaboration.md). */
+function CommentForm({ disabled, onSubmit }: CommentFormProps) {
+  const [content, setContent] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(content);
+      setContent("");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Não foi possível adicionar o comentário."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <Textarea
+        value={content}
+        onChange={(event) => setContent(event.target.value)}
+        disabled={disabled || isSubmitting}
+        placeholder={
+          disabled
+            ? "Você precisa ser participante desta tarefa para comentar."
+            : "Escreva um comentário..."
+        }
+        className="min-h-20 rounded-xl"
+      />
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={disabled || isSubmitting || content.trim() === ""}
+          className="gap-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+        >
+          <Send className="size-4" />
+          {isSubmitting ? "Enviando..." : "Comentar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function TaskDetailPage() {
   const { taskId } = useParams<{ taskId: string }>();
   const navigate = useNavigate();
@@ -116,6 +179,12 @@ export function TaskDetailPage() {
     addMember: addParticipant,
     removeMember: removeParticipant,
   } = useTaskMembers(taskId ?? "");
+  const {
+    comments,
+    isLoading: commentsLoading,
+    error: commentsError,
+    addComment,
+  } = useComments(taskId ?? "");
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
@@ -143,6 +212,12 @@ export function TaskDetailPage() {
   // própria, só reflete na UI o que o backend já impõe.
   const canEdit = isPersonal ? isCreator : isCreator || isAssignee || isWorkspaceManager;
   const canDelete = isPersonal ? isCreator : isCreator || isWorkspaceManager;
+  // Colaboração ≠ visibilidade (require_task_participant, contracts/
+  // collaboration.md): responsável e participantes explícitos comentam;
+  // Owner/Admin só se também forem participantes — nunca por posição. O
+  // responsável já vem embutido em `participants` (implícito), então basta
+  // checar a lista, sem repetir a regra do zero.
+  const canComment = participants.some((participant) => participant.user_id === currentUser?.id);
 
   function memberName(userId: string): string {
     if (userId === currentUser?.id) return "Você";
@@ -168,6 +243,10 @@ export function TaskDetailPage() {
     const found = await userService.lookupByEmail(email);
     await addParticipant({ user_id: found.id });
     setAddParticipantOpen(false);
+  }
+
+  async function handleAddComment(content: string) {
+    await addComment({ content });
   }
 
   async function handleDelete() {
@@ -375,6 +454,55 @@ export function TaskDetailPage() {
           )}
         </div>
       )}
+
+      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-5">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <MessageSquare className="size-4 text-muted-foreground" />
+          Comentários
+        </h2>
+
+        {commentsLoading && <Skeleton className="h-14 w-full rounded-xl" />}
+
+        {!commentsLoading && commentsError && (
+          <p className="text-sm text-destructive">{commentsError}</p>
+        )}
+
+        {!commentsLoading && !commentsError && (
+          <div className="flex flex-col gap-3">
+            {comments.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhum comentário ainda.</p>
+            )}
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-3">
+                <Avatar size="sm" className="mt-0.5 rounded-lg">
+                  <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
+                    {getInitials(comment.author_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1 rounded-xl border bg-muted/40 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-medium">
+                      {comment.author_name}
+                      {comment.author_id === currentUser?.id && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">(você)</span>
+                      )}
+                    </p>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {new Date(comment.created_at).toLocaleString("pt-BR", {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm whitespace-pre-wrap">{comment.content}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <CommentForm disabled={!canComment} onSubmit={handleAddComment} />
+      </div>
 
       <Sheet open={addParticipantOpen} onOpenChange={setAddParticipantOpen}>
         <SheetContent>

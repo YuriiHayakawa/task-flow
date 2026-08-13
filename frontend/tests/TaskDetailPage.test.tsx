@@ -96,6 +96,19 @@ function fakeAdapter(task: Task, myRole: WorkspaceRole): AxiosAdapter {
         ),
       );
     }
+    if (method === "get" && url === `/tasks/${TASK_ID}/comments`) {
+      const items = [
+        {
+          id: "66666666-6666-6666-6666-666666666666",
+          author_id: task.creator_id,
+          author_name: "Criador",
+          author_email: "criador@example.com",
+          content: "Primeiro comentário.",
+          created_at: "2026-01-02T10:00:00Z",
+        },
+      ];
+      return Promise.resolve(ok({ items, page: 1, page_size: 20, total: items.length }, config));
+    }
     return Promise.reject(new Error(`requisição inesperada: ${method} ${url}`));
   };
 }
@@ -205,5 +218,53 @@ describe("TaskDetailPage — seção de participantes (US5)", () => {
 
     await waitFor(() => expect(screen.getByText("Tarefa de teste")).toBeInTheDocument());
     expect(screen.queryByText("Participantes")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskDetailPage — seção de comentários (US6)", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("lista os comentários existentes, com autor e conteúdo", async () => {
+    const task = makeTask({ creator_id: CREATOR_ID, assignee_id: ASSIGNEE_ID });
+    renderPage(task, "MEMBER");
+
+    expect(await screen.findByText("Primeiro comentário.")).toBeInTheDocument();
+    // "Criador" também aparece em "Criada por:" — checa só que o autor do
+    // comentário está presente em algum lugar da página, sem exigir
+    // unicidade do nome.
+    expect(screen.getAllByText("Criador").length).toBeGreaterThan(0);
+  });
+
+  it("responsável (participante implícito): formulário de comentário habilitado", async () => {
+    const task = makeTask({ creator_id: CREATOR_ID, assignee_id: CURRENT_USER_ID });
+    renderPage(task, "MEMBER");
+
+    const textarea = await screen.findByPlaceholderText("Escreva um comentário...");
+    expect(textarea).not.toBeDisabled();
+  });
+
+  it("Member comum sem ser participante: formulário de comentário desabilitado", async () => {
+    const task = makeTask({ creator_id: CREATOR_ID, assignee_id: ASSIGNEE_ID });
+    renderPage(task, "MEMBER");
+
+    const textarea = await screen.findByPlaceholderText(
+      "Você precisa ser participante desta tarefa para comentar.",
+    );
+    expect(textarea).toBeDisabled();
+  });
+
+  it("tarefa pessoal (sem workspace): seção de comentários continua visível e habilitada para o criador", async () => {
+    const task = makeTask({
+      creator_id: CURRENT_USER_ID,
+      assignee_id: CURRENT_USER_ID,
+      workspace_id: null,
+      project_id: null,
+    });
+    renderPage(task, "OWNER");
+
+    expect(await screen.findByText("Comentários")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Escreva um comentário...")).not.toBeDisabled();
   });
 });
