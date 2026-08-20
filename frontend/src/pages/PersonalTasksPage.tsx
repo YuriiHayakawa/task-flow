@@ -14,7 +14,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -314,6 +313,141 @@ function TaskColumn({
   );
 }
 
+interface FlowStageProps {
+  icon: LucideIcon;
+  label: string;
+  count: number;
+  iconClass: string;
+  badgeClass: string;
+}
+
+/** Ícone junto da frase (lado a lado, sem linha/animação de trilho — tirada
+ * por ficar estranha cruzando o texto) — número em destaque de verdade
+ * (`text-xl`, a maior peça de texto do bloco todo), rótulo pequeno embaixo. */
+function FlowStage({ icon: Icon, label, count, iconClass, badgeClass }: FlowStageProps) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", badgeClass)}>
+        <Icon className={cn("size-4", iconClass)} />
+      </div>
+      <div className="leading-tight">
+        <p className="text-xl font-bold tabular-nums text-white">{count}</p>
+        <p className="text-[11px] font-medium text-slate-400">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+interface TasksHeroProps {
+  pendingCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  total: number;
+  progressPercent: number;
+  onCreate: () => void;
+}
+
+/** Cabeçalho próprio de "Minhas tarefas" — reconstruído do zero (não
+ * reaproveita `PageHeader`, genérico demais para a tela mais visitada do
+ * produto). Traz para dentro do app a identidade "TaskFlow" que hoje só
+ * aparece na tela pública (`BrandPanel`, tela de login): fundo azul-marinho,
+ * malha de pontos, blobs — e a MESMA animação do ponto viajando pelas
+ * colunas do mini kanban do login (classes `kanban-token`/`kanban-flow` de
+ * `global.css`, reaproveitadas tal qual, sem CSS novo), só que agora sobre
+ * uma trilha com as contagens REAIS do usuário (Pendente/Em andamento/
+ * Concluída) em vez de um mockup decorativo — a "prévia viva" do board
+ * kanban logo abaixo. */
+function TasksHero({
+  pendingCount,
+  inProgressCount,
+  doneCount,
+  total,
+  progressPercent,
+  onCreate,
+}: TasksHeroProps) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b1220] via-[#0a0f1e] to-[#05070f] p-5 shadow-xl shadow-black/20 sm:p-6">
+      <div className="blob-drift-a pointer-events-none absolute -top-20 -left-14 size-56 rounded-full bg-blue-600/25 blur-[80px]" />
+      <div className="blob-drift-b pointer-events-none absolute -right-16 -bottom-20 size-64 rounded-full bg-indigo-500/20 blur-[90px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[size:32px_32px]" />
+      <ListTodo
+        className="pointer-events-none absolute -right-8 -bottom-10 size-44 -rotate-12 text-blue-500/[0.06]"
+        strokeWidth={1}
+      />
+
+      <div className="relative flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative flex size-10 shrink-0 items-center justify-center">
+              <div className="absolute inset-0 rounded-xl bg-blue-500/30 blur-md" />
+              <div className="relative flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-900/40">
+                <ListTodo className="size-5 text-white" strokeWidth={2.25} />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                Minhas tarefas
+              </h1>
+              <p className="text-xs text-slate-400 sm:text-sm">
+                Arraste os cartões entre as colunas para atualizar o status.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={onCreate}
+            className="h-10 w-fit gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-[#05070f] shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-blue-500/10"
+          >
+            <PlusIcon className="size-4" />
+            Nova tarefa
+          </Button>
+        </div>
+
+        {total > 0 && (
+          <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col gap-2.5">
+              {/* Trilho numa faixa própria — nunca sobrepõe ícone nem texto
+                 dos indicadores abaixo, só "flutua" conectando os três,
+                 alinhado às mesmas 3 colunas (16,6% / 50% / 83,3%, mesma
+                 matemática do mini kanban do login). */}
+              <div className="relative h-1.5">
+                <div className="pointer-events-none absolute inset-x-[16.6%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-slate-500/0 via-white/25 to-slate-500/0" />
+                <span className="kanban-token pointer-events-none absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400 shadow-[0_0_10px_2px_rgba(96,165,250,0.6)]" />
+              </div>
+              <div className="grid grid-cols-3 justify-items-center gap-2">
+                <FlowStage
+                  icon={Circle}
+                  label="Pendente"
+                  count={pendingCount}
+                  iconClass="text-slate-300"
+                  badgeClass="bg-slate-400/15"
+                />
+                <FlowStage
+                  icon={CircleDot}
+                  label="Em andamento"
+                  count={inProgressCount}
+                  iconClass="text-blue-300"
+                  badgeClass="bg-blue-400/15"
+                />
+                <FlowStage
+                  icon={CheckCircle2}
+                  label="Concluída"
+                  count={doneCount}
+                  iconClass="text-emerald-300"
+                  badgeClass="bg-emerald-400/15"
+                />
+              </div>
+            </div>
+            <p className="shrink-0 text-xs font-medium text-slate-400 sm:text-right">
+              <span className="text-sm font-bold text-white">{progressPercent}%</span> concluído ·{" "}
+              {doneCount} de {total}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PersonalTasksPage() {
   const navigate = useNavigate();
   const { tasks, isLoading, error, createTask, updateTask } = usePersonalTasks();
@@ -356,40 +490,21 @@ export function PersonalTasksPage() {
   }
 
   const total = tasks.length;
+  const pendingCount = tasks.filter((task) => task.status === "PENDING").length;
+  const inProgressCount = tasks.filter((task) => task.status === "IN_PROGRESS").length;
   const doneCount = tasks.filter((task) => task.status === "DONE").length;
   const progressPercent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        icon={ListTodo}
-        title="Minhas tarefas"
-        description="Arraste os cartões entre as colunas para atualizar o status."
-      >
-        {!isLoading && !error && total > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {doneCount} de {total} concluídas ({progressPercent}%)
-            </span>
-          </div>
-        )}
-      </PageHeader>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={openCreateForm}
-          className="h-10 gap-1.5 rounded-lg bg-blue-600 px-5 text-sm text-white shadow-sm shadow-blue-600/20 hover:bg-blue-500"
-        >
-          <PlusIcon className="size-4" />
-          Nova tarefa
-        </Button>
-      </div>
+      <TasksHero
+        pendingCount={pendingCount}
+        inProgressCount={inProgressCount}
+        doneCount={doneCount}
+        total={total}
+        progressPercent={progressPercent}
+        onCreate={openCreateForm}
+      />
 
       {isLoading && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
