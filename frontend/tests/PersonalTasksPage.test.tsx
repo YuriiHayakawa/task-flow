@@ -4,6 +4,7 @@ import type {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from "axios";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
@@ -80,6 +81,19 @@ function getColumn(label: string): HTMLElement {
   return screen.getByLabelText(`Coluna ${label}`);
 }
 
+/** `/tasks/:taskId` é um stub (só confirma que a navegação aconteceu) — a
+ * própria `TaskDetailPage` tem sua suíte de testes dedicada. */
+function renderPage() {
+  return render(
+    <MemoryRouter initialEntries={["/tasks"]}>
+      <Routes>
+        <Route path="/tasks" element={<PersonalTasksPage />} />
+        <Route path="/tasks/:taskId" element={<p>Detalhes da tarefa</p>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("PersonalTasksPage", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -88,7 +102,7 @@ describe("PersonalTasksPage", () => {
   it("exibe o estado vazio quando não há tarefas pessoais", async () => {
     httpClient.defaults.adapter = fakeTaskBackend([]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     expect(
       await screen.findByText(/ainda não tem tarefas pessoais/),
@@ -107,7 +121,7 @@ describe("PersonalTasksPage", () => {
       makeTask({ title: "Tarefa finalizada", status: "DONE" }),
     ]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText("Comprar mantimentos");
 
@@ -125,7 +139,7 @@ describe("PersonalTasksPage", () => {
       makeTask({ title: "Tarefa de workspace", workspace_id: "11111111-1111-1111-1111-111111111111" }),
     ]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText("Tarefa pessoal");
     expect(screen.queryByText("Tarefa de workspace")).not.toBeInTheDocument();
@@ -134,7 +148,7 @@ describe("PersonalTasksPage", () => {
   it("cria uma nova tarefa pessoal (entra na coluna Pendente)", async () => {
     httpClient.defaults.adapter = fakeTaskBackend([]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText(/ainda não tem tarefas pessoais/);
 
@@ -156,7 +170,7 @@ describe("PersonalTasksPage", () => {
       makeTask({ title: "Lavar o carro", status: "PENDING" }),
     ]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText("Lavar o carro");
 
@@ -166,24 +180,30 @@ describe("PersonalTasksPage", () => {
     expect(within(getColumn("Pendente")).queryByText("Lavar o carro")).not.toBeInTheDocument();
   });
 
-  it("edita uma tarefa existente", async () => {
-    httpClient.defaults.adapter = fakeTaskBackend([
-      makeTask({ title: "Título antigo", description: "Descrição antiga" }),
-    ]);
+  it("clicar no cartão abre a página de detalhes da tarefa (edição acontece lá)", async () => {
+    const task = makeTask({ title: "Título antigo" });
+    httpClient.defaults.adapter = fakeTaskBackend([task]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText("Título antigo");
+    fireEvent.click(screen.getByText("Título antigo"));
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar tarefa" }));
+    expect(await screen.findByText("Detalhes da tarefa")).toBeInTheDocument();
+  });
 
-    const titleInput = await screen.findByLabelText("Título");
-    expect(titleInput).toHaveValue("Título antigo");
+  it("clicar no checkbox alterna concluída sem navegar para os detalhes", async () => {
+    httpClient.defaults.adapter = fakeTaskBackend([
+      makeTask({ title: "Lavar o carro", status: "PENDING" }),
+    ]);
 
-    fireEvent.change(titleInput, { target: { value: "Título revisado" } });
-    fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+    renderPage();
 
-    await screen.findByText("Título revisado");
+    await screen.findByText("Lavar o carro");
+    fireEvent.click(screen.getByRole("checkbox", { name: "Marcar como concluída" }));
+
+    await within(getColumn("Concluída")).findByText("Lavar o carro");
+    expect(screen.queryByText("Detalhes da tarefa")).not.toBeInTheDocument();
   });
 
   it("move uma tarefa entre colunas ao arrastar e soltar", async () => {
@@ -191,7 +211,7 @@ describe("PersonalTasksPage", () => {
       makeTask({ title: "Preparar apresentação", status: "PENDING" }),
     ]);
 
-    render(<PersonalTasksPage />);
+    renderPage();
 
     await screen.findByText("Preparar apresentação");
 

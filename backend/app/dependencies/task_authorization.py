@@ -7,8 +7,10 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.enums.workspace_role import WorkspaceRole
+from app.models.recurring_task import RecurringTask
 from app.models.task import Task
 from app.models.user import User
+from app.repositories.recurring_task_repository import RecurringTaskRepository
 from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
@@ -108,3 +110,19 @@ def require_task_delete(
         return task
 
     raise ForbiddenError("Você não tem permissão para excluir esta tarefa.")
+
+
+def require_recurring_task_owner(
+    recurring_task_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> RecurringTask:
+    """Única regra de autorização de Tarefa Fixa (research.md #6, 002-tarefas-
+    fixas): sem níveis de visibilidade/colaboração/administração como em
+    `Task` — uma Tarefa Fixa nunca é vista por ninguém além do dono
+    (FR-011), então um único nível já cobre 100% dos casos. `404` (nunca
+    `403`) para quem não é dono, mesmo padrão de `require_task_visible`."""
+    recurring_task = RecurringTaskRepository(db).get_by_id(recurring_task_id)
+    if recurring_task is None or recurring_task.owner_id != current_user.id:
+        raise NotFoundError("Tarefa fixa não encontrada.")
+    return recurring_task

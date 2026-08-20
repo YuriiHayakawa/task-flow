@@ -1,10 +1,14 @@
+import { useEffect, useState } from "react";
 import {
   Bell,
   Building2,
+  ChevronRight,
   ChevronsLeft,
+  Kanban,
   ListTodo,
   LayoutDashboard,
   LogOut,
+  Repeat,
   ShieldCheck,
   User as UserIcon,
   Workflow,
@@ -12,6 +16,11 @@ import {
 import { Link, Outlet, useLocation } from "react-router-dom";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +38,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarSeparator,
   useSidebar,
@@ -70,10 +82,21 @@ function SidebarCollapseButton() {
   );
 }
 
-const NAV_ITEMS = [
+const NAV_ITEMS_BEFORE_TASKS = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/workspaces", label: "Workspaces", icon: Building2 },
-  { to: "/tasks", label: "Minhas tarefas", icon: ListTodo },
+] as const;
+
+/** "Minhas tarefas" deixou de ser um link direto: agora é um grupo que
+ * expande em duas rotas reais — o quadro kanban (`/tasks`) e as rotinas
+ * recorrentes (`/tasks/recurring`), que antes viviam como abas dentro da
+ * própria página (`TasksTabs`, removido). */
+const TASKS_SUB_ITEMS = [
+  { to: "/tasks", label: "Esteira de tarefas", icon: Kanban },
+  { to: "/tasks/recurring", label: "Tarefas Fixas", icon: Repeat },
+] as const;
+
+const NAV_ITEMS_AFTER_TASKS = [
   { to: "/notifications", label: "Notificações", icon: Bell },
   { to: "/profile", label: "Perfil", icon: UserIcon },
 ] as const;
@@ -88,6 +111,19 @@ function getInitials(name: string): string {
 export function AuthenticatedLayout() {
   const { user, isSystemAdmin, logout } = useAuth();
   const location = useLocation();
+
+  const isTasksSectionActive = TASKS_SUB_ITEMS.some(
+    (item) => item.to === location.pathname,
+  );
+  const [tasksMenuOpen, setTasksMenuOpen] = useState(isTasksSectionActive);
+
+  // Ao navegar direto para uma das duas rotas (link externo, "voltar" do
+  // navegador etc.), o grupo abre sozinho — mas não fecha ao sair, pra não
+  // "sumir" a opção embaixo do cursor enquanto o usuário ainda está com o
+  // menu aberto.
+  useEffect(() => {
+    if (isTasksSectionActive) setTasksMenuOpen(true);
+  }, [isTasksSectionActive]);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -116,7 +152,63 @@ export function AuthenticatedLayout() {
               <SidebarGroup>
                 <SidebarGroupContent>
                   <SidebarMenu className="gap-1">
-                    {NAV_ITEMS.map(({ to, label, icon: Icon }) => {
+                    {NAV_ITEMS_BEFORE_TASKS.map(({ to, label, icon: Icon }) => {
+                      const isActive = location.pathname === to;
+                      return (
+                        <SidebarMenuItem key={to}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={isActive}
+                            tooltip={label}
+                            className="h-10 rounded-lg text-[0.925rem] [&_svg]:size-[1.125rem]"
+                          >
+                            <Link to={to}>
+                              <Icon className="transition-transform duration-200 group-hover/menu-button:scale-110" />
+                              <span>{label}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      );
+                    })}
+
+                    <Collapsible
+                      open={tasksMenuOpen}
+                      onOpenChange={setTasksMenuOpen}
+                      className="group/tasks-collapsible"
+                    >
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton
+                            isActive={isTasksSectionActive}
+                            tooltip="Minhas tarefas"
+                            className="h-10 rounded-lg text-[0.925rem] [&_svg]:size-[1.125rem]"
+                          >
+                            <ListTodo className="transition-transform duration-200 group-hover/menu-button:scale-110" />
+                            <span>Minhas tarefas</span>
+                            <ChevronRight className="ml-auto size-4! shrink-0 transition-transform duration-200 group-data-[state=open]/tasks-collapsible:rotate-90" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {TASKS_SUB_ITEMS.map(({ to, label, icon: Icon }) => {
+                              const isActive = location.pathname === to;
+                              return (
+                                <SidebarMenuSubItem key={to}>
+                                  <SidebarMenuSubButton asChild isActive={isActive}>
+                                    <Link to={to}>
+                                      <Icon />
+                                      <span>{label}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              );
+                            })}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+
+                    {NAV_ITEMS_AFTER_TASKS.map(({ to, label, icon: Icon }) => {
                       const isActive = location.pathname === to;
                       return (
                         <SidebarMenuItem key={to}>

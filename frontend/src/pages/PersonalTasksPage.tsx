@@ -8,13 +8,12 @@ import {
   Flag,
   GripVertical,
   ListTodo,
-  PencilIcon,
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -26,7 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePersonalTasks } from "@/hooks/usePersonalTasks";
 import { cn } from "@/lib/utils";
-import type { Task, TaskCreate, TaskStatus, TaskUpdate } from "@/types/task";
+import type { Task, TaskCreate, TaskStatus } from "@/types/task";
 
 /** Mesma linguagem visual do restante do produto: os ícones de status
  * reaproveitam exatamente os do Dashboard (`Circle`/`CircleDot`/
@@ -130,13 +129,19 @@ interface TaskCardProps {
   task: Task;
   index: number;
   isDragging: boolean;
-  onEdit: () => void;
+  onOpen: () => void;
   onToggleDone: () => void;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }
 
-function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
+/** Cartão inteiro é clicável (abre a página de detalhes da tarefa,
+ * `/tasks/{id}` — mesma usada em Workspace/Projeto), exceto o checkbox
+ * (`stopPropagation`, que só alterna concluída/pendente sem navegar). Não é
+ * um `<button>` nativo porque o `Checkbox` do Radix já é um botão por
+ * dentro — botão dentro de botão é HTML inválido — então usa `role="button"`
+ * + teclado (Enter/Espaço) para manter acessibilidade sem essa limitação. */
+function TaskCard({ task, index, isDragging, onOpen, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
   const due = task.due_date ? describeDueDate(task.due_date, task.status === "DONE") : null;
   const isDone = task.status === "DONE";
 
@@ -145,6 +150,15 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
       style={{ animationDelay: `${Math.min(index * 40, 200)}ms` }}
       className={cn(
         "group animate-in fade-in slide-in-from-bottom-1 flex cursor-grab flex-col gap-2 rounded-xl border border-l-4 bg-card p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
@@ -154,12 +168,14 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
     >
       <div className="flex items-start gap-1">
         <GripVertical className="mt-1.5 size-3.5 shrink-0 text-transparent transition-colors group-hover:text-muted-foreground/40" />
-        <Checkbox
-          checked={isDone}
-          onCheckedChange={onToggleDone}
-          aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
-          className="mt-0.5"
-        />
+        <span onClick={(event) => event.stopPropagation()}>
+          <Checkbox
+            checked={isDone}
+            onCheckedChange={onToggleDone}
+            aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
+            className="mt-0.5"
+          />
+        </span>
         <p
           className={cn(
             "flex-1 text-sm font-medium",
@@ -168,15 +184,6 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
         >
           {task.title}
         </p>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onEdit}
-          aria-label="Editar tarefa"
-          className="opacity-0 transition-opacity group-hover:opacity-100"
-        >
-          <PencilIcon />
-        </Button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-9">
         <span
@@ -219,7 +226,7 @@ interface TaskColumnProps {
   dropRingClass: string;
   tasks: Task[];
   draggingId: string | null;
-  onEdit: (task: Task) => void;
+  onOpenTask: (task: Task) => void;
   onToggleDone: (task: Task) => void;
   onDragStartTask: (taskId: string) => (event: DragEvent<HTMLDivElement>) => void;
   onDragEndTask: () => void;
@@ -237,7 +244,7 @@ function TaskColumn({
   dropRingClass,
   tasks,
   draggingId,
-  onEdit,
+  onOpenTask,
   onToggleDone,
   onDragStartTask,
   onDragEndTask,
@@ -295,7 +302,7 @@ function TaskColumn({
             task={task}
             index={index}
             isDragging={draggingId === task.id}
-            onEdit={() => onEdit(task)}
+            onOpen={() => onOpenTask(task)}
             onToggleDone={() => onToggleDone(task)}
             onDragStart={onDragStartTask(task.id)}
             onDragEnd={onDragEndTask}
@@ -306,19 +313,148 @@ function TaskColumn({
   );
 }
 
+interface FlowStageProps {
+  icon: LucideIcon;
+  label: string;
+  count: number;
+  iconClass: string;
+  badgeClass: string;
+}
+
+/** Ícone junto da frase (lado a lado, sem linha/animação de trilho — tirada
+ * por ficar estranha cruzando o texto) — número em destaque de verdade
+ * (`text-xl`, a maior peça de texto do bloco todo), rótulo pequeno embaixo. */
+function FlowStage({ icon: Icon, label, count, iconClass, badgeClass }: FlowStageProps) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", badgeClass)}>
+        <Icon className={cn("size-4", iconClass)} />
+      </div>
+      <div className="leading-tight">
+        <p className="text-xl font-bold tabular-nums text-white">{count}</p>
+        <p className="text-[11px] font-medium text-slate-400">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+interface TasksHeroProps {
+  pendingCount: number;
+  inProgressCount: number;
+  doneCount: number;
+  total: number;
+  progressPercent: number;
+  onCreate: () => void;
+}
+
+/** Cabeçalho próprio de "Minhas tarefas" — reconstruído do zero (não
+ * reaproveita `PageHeader`, genérico demais para a tela mais visitada do
+ * produto). Traz para dentro do app a identidade "TaskFlow" que hoje só
+ * aparece na tela pública (`BrandPanel`, tela de login): fundo azul-marinho,
+ * malha de pontos, blobs — e a MESMA animação do ponto viajando pelas
+ * colunas do mini kanban do login (classes `kanban-token`/`kanban-flow` de
+ * `global.css`, reaproveitadas tal qual, sem CSS novo), só que agora sobre
+ * uma trilha com as contagens REAIS do usuário (Pendente/Em andamento/
+ * Concluída) em vez de um mockup decorativo — a "prévia viva" do board
+ * kanban logo abaixo. */
+function TasksHero({
+  pendingCount,
+  inProgressCount,
+  doneCount,
+  total,
+  progressPercent,
+  onCreate,
+}: TasksHeroProps) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b1220] via-[#0a0f1e] to-[#05070f] p-5 shadow-xl shadow-black/20 sm:p-6">
+      <div className="blob-drift-a pointer-events-none absolute -top-20 -left-14 size-56 rounded-full bg-blue-600/25 blur-[80px]" />
+      <div className="blob-drift-b pointer-events-none absolute -right-16 -bottom-20 size-64 rounded-full bg-indigo-500/20 blur-[90px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[size:32px_32px]" />
+      <ListTodo
+        className="pointer-events-none absolute -right-8 -bottom-10 size-44 -rotate-12 text-blue-500/[0.06]"
+        strokeWidth={1}
+      />
+
+      <div className="relative flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative flex size-10 shrink-0 items-center justify-center">
+              <div className="absolute inset-0 rounded-xl bg-blue-500/30 blur-md" />
+              <div className="relative flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-400 to-blue-700 shadow-lg shadow-blue-900/40">
+                <ListTodo className="size-5 text-white" strokeWidth={2.25} />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
+                Minhas tarefas
+              </h1>
+              <p className="text-xs text-slate-400 sm:text-sm">
+                Arraste os cartões entre as colunas para atualizar o status.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={onCreate}
+            className="h-10 w-fit gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-[#05070f] shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-blue-500/10"
+          >
+            <PlusIcon className="size-4" />
+            Nova tarefa
+          </Button>
+        </div>
+
+        {total > 0 && (
+          <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-1 flex-col gap-2.5">
+              {/* Trilho numa faixa própria — nunca sobrepõe ícone nem texto
+                 dos indicadores abaixo, só "flutua" conectando os três,
+                 alinhado às mesmas 3 colunas (16,6% / 50% / 83,3%, mesma
+                 matemática do mini kanban do login). */}
+              <div className="relative h-1.5">
+                <div className="pointer-events-none absolute inset-x-[16.6%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-slate-500/0 via-white/25 to-slate-500/0" />
+                <span className="kanban-token pointer-events-none absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-400 shadow-[0_0_10px_2px_rgba(96,165,250,0.6)]" />
+              </div>
+              <div className="grid grid-cols-3 justify-items-center gap-2">
+                <FlowStage
+                  icon={Circle}
+                  label="Pendente"
+                  count={pendingCount}
+                  iconClass="text-slate-300"
+                  badgeClass="bg-slate-400/15"
+                />
+                <FlowStage
+                  icon={CircleDot}
+                  label="Em andamento"
+                  count={inProgressCount}
+                  iconClass="text-blue-300"
+                  badgeClass="bg-blue-400/15"
+                />
+                <FlowStage
+                  icon={CheckCircle2}
+                  label="Concluída"
+                  count={doneCount}
+                  iconClass="text-emerald-300"
+                  badgeClass="bg-emerald-400/15"
+                />
+              </div>
+            </div>
+            <p className="shrink-0 text-xs font-medium text-slate-400 sm:text-right">
+              <span className="text-sm font-bold text-white">{progressPercent}%</span> concluído ·{" "}
+              {doneCount} de {total}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PersonalTasksPage() {
+  const navigate = useNavigate();
   const { tasks, isLoading, error, createTask, updateTask } = usePersonalTasks();
   const [formOpen, setFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   function openCreateForm() {
-    setEditingTask(null);
-    setFormOpen(true);
-  }
-
-  function openEditForm(task: Task) {
-    setEditingTask(task);
     setFormOpen(true);
   }
 
@@ -330,11 +466,7 @@ export function PersonalTasksPage() {
       priority: values.priority,
       due_date: values.due_date === "" ? null : values.due_date,
     };
-    if (editingTask) {
-      await updateTask(editingTask.id, payload satisfies TaskUpdate);
-    } else {
-      await createTask(payload satisfies TaskCreate);
-    }
+    await createTask(payload satisfies TaskCreate);
     setFormOpen(false);
   }
 
@@ -358,40 +490,21 @@ export function PersonalTasksPage() {
   }
 
   const total = tasks.length;
+  const pendingCount = tasks.filter((task) => task.status === "PENDING").length;
+  const inProgressCount = tasks.filter((task) => task.status === "IN_PROGRESS").length;
   const doneCount = tasks.filter((task) => task.status === "DONE").length;
   const progressPercent = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader
-        icon={ListTodo}
-        title="Minhas tarefas"
-        description="Arraste os cartões entre as colunas para atualizar o status."
-      >
-        {!isLoading && !error && total > 0 && (
-          <div className="flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-400 to-emerald-400 transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <span className="shrink-0 text-xs font-medium text-muted-foreground">
-              {doneCount} de {total} concluídas ({progressPercent}%)
-            </span>
-          </div>
-        )}
-      </PageHeader>
-
-      <div className="flex justify-end">
-        <Button
-          onClick={openCreateForm}
-          className="h-10 gap-1.5 rounded-lg bg-blue-600 px-5 text-sm text-white shadow-sm shadow-blue-600/20 hover:bg-blue-500"
-        >
-          <PlusIcon className="size-4" />
-          Nova tarefa
-        </Button>
-      </div>
+      <TasksHero
+        pendingCount={pendingCount}
+        inProgressCount={inProgressCount}
+        doneCount={doneCount}
+        total={total}
+        progressPercent={progressPercent}
+        onCreate={openCreateForm}
+      />
 
       {isLoading && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -427,7 +540,7 @@ export function PersonalTasksPage() {
               dropRingClass={column.dropRingClass}
               tasks={tasks.filter((task) => task.status === column.status)}
               draggingId={draggingId}
-              onEdit={openEditForm}
+              onOpenTask={(task) => navigate(`/tasks/${task.id}`)}
               onToggleDone={toggleDone}
               onDragStartTask={handleDragStartTask}
               onDragEndTask={() => setDraggingId(null)}
@@ -437,27 +550,21 @@ export function PersonalTasksPage() {
         </div>
       )}
 
+      {/* Edição de tarefa existente acontece na página de detalhes
+         (`/tasks/{id}`, botão "Editar") — este Sheet fica só para criação,
+         mesma divisão de responsabilidade já usada em Workspace/Projeto. */}
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
         <SheetContent>
           <SheetHeader>
             <div className="flex items-center gap-2.5">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
-                {editingTask ? (
-                  <PencilIcon className="size-4 text-white" />
-                ) : (
-                  <PlusIcon className="size-4 text-white" />
-                )}
+                <PlusIcon className="size-4 text-white" />
               </div>
-              <SheetTitle>{editingTask ? "Editar tarefa" : "Nova tarefa"}</SheetTitle>
+              <SheetTitle>Nova tarefa</SheetTitle>
             </div>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <TaskForm
-              key={editingTask?.id ?? "new"}
-              task={editingTask ?? undefined}
-              onSubmit={handleSubmit}
-              onCancel={() => setFormOpen(false)}
-            />
+            <TaskForm onSubmit={handleSubmit} onCancel={() => setFormOpen(false)} />
           </div>
         </SheetContent>
       </Sheet>

@@ -9,6 +9,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
 import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
+import { RecurringTasksPage } from "@/pages/RecurringTasksPage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { TaskDetailPage } from "@/pages/TaskDetailPage";
 import { TaskFormPage } from "@/pages/TaskFormPage";
@@ -93,6 +94,7 @@ export function AppRoutes() {
           element={<ProjectDetailPage />}
         />
         <Route path="/tasks" element={<PersonalTasksPage />} />
+        <Route path="/tasks/recurring" element={<RecurringTasksPage />} />
         <Route path="/tasks/new" element={<TaskFormPage />} />
         <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/tasks/:taskId/edit" element={<TaskFormPage />} />

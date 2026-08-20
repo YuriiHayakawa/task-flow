@@ -25,7 +25,10 @@ from app.enums.task_priority import TaskPriority
 from app.enums.task_status import TaskStatus
 from app.enums.workspace_role import WorkspaceRole
 from app.main import app
+from app.enums.recurrence_type import RecurrenceType
 from app.models.project import Project
+from app.models.recurring_task import RecurringTask
+from app.models.recurring_task_weekday import RecurringTaskWeekday
 from app.models.task import Task
 from app.models.user import User
 from app.models.workspace import Workspace
@@ -204,6 +207,35 @@ def make_task(db_session: Session):
         return task
 
     return _make_task
+
+
+@pytest.fixture()
+def make_recurring_task(db_session: Session):
+    def _make_recurring_task(
+        *,
+        owner: User,
+        title: str = "Test Recurring Task",
+        recurrence_type: RecurrenceType = RecurrenceType.DAILY,
+        weekdays: list[int] | None = None,
+        month_day: int | None = None,
+    ) -> RecurringTask:
+        recurring_task = RecurringTask(
+            owner_id=owner.id,
+            title=title,
+            recurrence_type=recurrence_type,
+            month_day=month_day,
+        )
+        db_session.add(recurring_task)
+        db_session.flush()
+
+        for weekday in weekdays or []:
+            db_session.add(
+                RecurringTaskWeekday(recurring_task_id=recurring_task.id, weekday=weekday)
+            )
+        db_session.flush()
+        return recurring_task
+
+    return _make_recurring_task
 
 
 @pytest.fixture()

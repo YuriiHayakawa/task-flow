@@ -1013,13 +1013,42 @@ quais não é membro.
 
 ## Phase 23: Frontend — User Story 6: Comentários em Tarefas (Priority: P2)
 
-- [ ] T145 [P] [US6] Criar `frontend/src/services/commentService.ts` (depende de T120, T123)
-- [ ] T146 [P] [US6] Criar `frontend/src/hooks/useComments.ts` (depende de T145)
-- [ ] T147 [US6] Adicionar seção de comentários em `frontend/src/pages/TaskDetailPage.tsx`
+- [x] T145 [P] [US6] Criar `frontend/src/services/commentService.ts` (depende de T120, T123)
+- [x] T146 [P] [US6] Criar `frontend/src/hooks/useComments.ts` (depende de T145)
+- [x] T147 [US6] Adicionar seção de comentários em `frontend/src/pages/TaskDetailPage.tsx`
   (formulário de novo comentário desabilitado para quem não é participante, listagem visível a
-  todos) (depende de T146, T141)
+  todos) (depende de T146, T141) — seção SEMPRE visível (ao contrário de Participantes, que só
+  existe em tarefa de workspace): `require_task_visible`/`require_task_participant`
+  (contracts/collaboration.md) permitem comentário em tarefa pessoal (só o criador, único
+  "participante" possível). `canComment` reaproveita a lista de `participants` já buscada pela
+  Fase 22 (o responsável já vem embutido nela como implícito) — Owner/Admin não ganham o direito
+  de comentar só pela role, exatamente como o backend. `CommentForm` local à página (não
+  extraído — usado uma única vez, ao contrário de `AddMemberByEmailForm`): campo/botão
+  desabilitados com dica do motivo em vez de a seção sumir. 4 novos testes em
+  `TaskDetailPage.test.tsx` (listagem, habilitado para participante, desabilitado para Member
+  comum, seção presente e habilitada em tarefa pessoal)
 
 **Commit sugerido**: `feat(frontend): implementa comentários em tarefas (US6)`
+
+---
+
+- [x] T144b _(task de acompanhamento, não prevista originalmente)_ Liga os cartões de "Minhas
+  tarefas" (`PersonalTasksPage.tsx`, T128) à `TaskDetailPage` (`/tasks/{id}`, T141) — antes, o
+  cartão só abria um Sheet de edição rápida isolado, sem acesso a participantes/comentários já
+  implementados (Fases 22/23); editar uma tarefa pessoal agora acontece na mesma página de
+  detalhes usada por tarefas de workspace, e o Sheet fica só para criação. Checkbox usa
+  `stopPropagation` para não navegar ao marcar concluída; cartão é `role="button"` (não
+  `<button>` nativo — o `Checkbox` do Radix já é um botão por dentro) com suporte a teclado.
+  **Bug real encontrado e corrigido** ao ligar essa navegação: `TaskFormPage.tsx` (T141) foi
+  construído só para tarefa de workspace e sempre renderizava o Select de Responsável — numa
+  tarefa pessoal, sem `members` para popular `SelectItem`s, o Radix Select se autocorrige e zera
+  `assigneeId`, travando "Salvar" para sempre (mesma classe de bug de T141, numa combinação nunca
+  exercitada até agora). Corrigido ocultando Responsável/Projeto ao editar tarefa pessoal — nenhum
+  dos dois se aplica a esse caso (backend força `assignee_id = creator_id` e rejeita projeto sem
+  workspace). 3 novos testes (`TaskFormPage.test.tsx`, novo arquivo: pessoal oculta os campos e
+  salva; workspace continua exibindo ambos) + 2 testes de `PersonalTasksPage.test.tsx` reescritos
+  (clicar no cartão navega; clicar no checkbox não navega). Suíte completa do frontend: 56/56
+  passed
 
 ---
 
@@ -1053,10 +1082,12 @@ quais não é membro.
 
 ## Phase 26: Frontend — User Story 9: Checklists em Tarefas (Priority: P3)
 
-- [ ] T155 [P] [US9] Criar `frontend/src/services/checklistService.ts` (depende de T120, T123)
-- [ ] T156 [P] [US9] Criar `frontend/src/hooks/useChecklist.ts` (depende de T155)
-- [ ] T157 [US9] Adicionar seção de checklist em `frontend/src/pages/TaskDetailPage.tsx` (adicionar
-  item, marcar concluído/pendente, remover — restrito a participantes) (depende de T156, T141)
+- [x] T155 [P] [US9] Criar `frontend/src/services/checklistService.ts` (depende de T120, T123)
+- [x] T156 [P] [US9] Criar `frontend/src/hooks/useChecklist.ts` (depende de T155)
+- [x] T157 [US9] Adicionar seção de checklist em `frontend/src/pages/TaskDetailPage.tsx` (adicionar
+  item, marcar concluído/pendente, remover — restrito a participantes) (depende de T156, T141) —
+  progresso (`N de M` + barra), item riscado quando concluído, remoção sem confirmação (ação
+  leve/reversível, diferente de participante/anexo/tarefa)
 
 **Commit sugerido**: `feat(frontend): implementa checklists em tarefas (US9)`
 
@@ -1064,10 +1095,13 @@ quais não é membro.
 
 ## Phase 27: Frontend — User Story 10: Anexos em Tarefas (Priority: P3)
 
-- [ ] T158 [P] [US10] Criar `frontend/src/services/attachmentService.ts` (depende de T120, T123)
-- [ ] T159 [P] [US10] Criar `frontend/src/hooks/useAttachments.ts` (depende de T158)
-- [ ] T160 [US10] Adicionar seção de anexos em `frontend/src/pages/TaskDetailPage.tsx` (upload,
-  listagem, download, remoção condicionada a uploader/Owner/Admin) (depende de T159, T141)
+- [x] T158 [P] [US10] Criar `frontend/src/services/attachmentService.ts` (depende de T120, T123)
+- [x] T159 [P] [US10] Criar `frontend/src/hooks/useAttachments.ts` (depende de T158)
+- [x] T160 [US10] Adicionar seção de anexos em `frontend/src/pages/TaskDetailPage.tsx` (upload,
+  listagem, download, remoção condicionada a uploader/Owner/Admin) (depende de T159, T141) — download
+  via blob autenticado (`httpClient` + link temporário, já que a rota exige `Authorization: Bearer`
+  e não dá para navegar direto pra URL); `accept` do input e dica de texto alinhados a
+  `ATTACHMENTS_ALLOWED_CONTENT_TYPES`/`ATTACHMENTS_MAX_SIZE_BYTES` (config do backend)
 
 🎯 **Marco: Colaboração concluída (frontend)** (Comentários, Checklists e Anexos — US6/US9/US10)
 
@@ -1088,12 +1122,34 @@ quais não é membro.
 
 ## Phase 29: Frontend — User Story 12: Histórico de Alterações da Tarefa (Priority: P3)
 
-- [ ] T164 [P] [US12] Criar `frontend/src/services/taskHistoryService.ts` (depende de T120, T123)
-- [ ] T165 [P] [US12] Criar `frontend/src/hooks/useTaskHistory.ts` (depende de T164)
-- [ ] T166 [US12] Adicionar seção de histórico (ordem cronológica) em
-  `frontend/src/pages/TaskDetailPage.tsx` (depende de T165, T141)
+- [x] T164 [P] [US12] Criar `frontend/src/services/taskHistoryService.ts` (depende de T120, T123)
+- [x] T165 [P] [US12] Criar `frontend/src/hooks/useTaskHistory.ts` (depende de T164)
+- [x] T166 [US12] Adicionar seção de histórico (ordem cronológica) em
+  `frontend/src/pages/TaskDetailPage.tsx` (depende de T165, T141) — timeline vertical na barra
+  lateral; `describeHistoryEntry` traduz os 4 campos rastreados por `TaskService.update`
+  (status/priority/due_date/assignee_id, T110) para frase legível, usando os mesmos
+  `STATUS_LABEL`/`PRIORITY_LABEL` já existentes (nenhum rótulo novo inventado)
 
 **Commit sugerido**: `feat(frontend): implementa histórico de alterações da tarefa (US12)`
+
+---
+
+- [ ] T166b _(task de acompanhamento, não prevista originalmente)_ Reformulação visual completa de
+  `TaskDetailPage.tsx` — pedido explícito do usuário, com referência visual de um mockup de terceiro
+  (campos "Categoria"/"Tags" do mockup **não** replicados: não existem no modelo de dados do
+  TaskFlow). Proposta apresentada primeiro como protótipo visual (canvas de design) para validação
+  antes da implementação. Cabeçalho reconstruído com a mesma identidade escura/textura/blobs do hero
+  de "Minhas tarefas" (Fase 18); layout de duas colunas (conteúdo principal + barra lateral
+  "Detalhes da tarefa" com Prazo/Criada em/Criada por/Responsável/Workspace/Projeto, mais Histórico
+  e o botão "Excluir tarefa", antes misturado às demais ações). **Edição inline de Status/Prioridade**
+  na barra lateral (Select que salva direto via `updateTask`, decisão explícita do usuário — não
+  precisa mais abrir "Editar" só pra isso); "Marcar como concluída"/"Editar" permanecem no
+  cabeçalho. Escopo combinado com a implementação de T157/T160/T166 (Checklist/Anexos/Histórico),
+  também decisão explícita do usuário. 24 testes em `TaskDetailPage.test.tsx` (11 novos, cobrindo as
+  3 seções novas e a edição inline); `tests/setup.ts` ganhou polyfills de `scrollIntoView`/Pointer
+  Capture (ausentes no jsdom, necessários para testar a abertura do Select do Radix — primeiro teste
+  do projeto a interagir de fato com um Select, não só verificar presença). Suíte completa do
+  frontend: 68/68 passed
 
 ---
 
