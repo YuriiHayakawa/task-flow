@@ -3,7 +3,6 @@ import { useState } from "react";
 
 import { RecurringTaskForm, type RecurringTaskFormValues } from "@/components/forms/RecurringTaskForm";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { TasksTabs } from "@/components/layout/TasksTabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -175,8 +174,6 @@ export function RecurringTasksPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <TasksTabs />
-
       <PageHeader
         icon={Repeat}
         title="Tarefas Fixas"
