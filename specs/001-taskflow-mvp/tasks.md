@@ -1032,6 +1032,26 @@ quais não é membro.
 
 ---
 
+- [x] T144b _(task de acompanhamento, não prevista originalmente)_ Liga os cartões de "Minhas
+  tarefas" (`PersonalTasksPage.tsx`, T128) à `TaskDetailPage` (`/tasks/{id}`, T141) — antes, o
+  cartão só abria um Sheet de edição rápida isolado, sem acesso a participantes/comentários já
+  implementados (Fases 22/23); editar uma tarefa pessoal agora acontece na mesma página de
+  detalhes usada por tarefas de workspace, e o Sheet fica só para criação. Checkbox usa
+  `stopPropagation` para não navegar ao marcar concluída; cartão é `role="button"` (não
+  `<button>` nativo — o `Checkbox` do Radix já é um botão por dentro) com suporte a teclado.
+  **Bug real encontrado e corrigido** ao ligar essa navegação: `TaskFormPage.tsx` (T141) foi
+  construído só para tarefa de workspace e sempre renderizava o Select de Responsável — numa
+  tarefa pessoal, sem `members` para popular `SelectItem`s, o Radix Select se autocorrige e zera
+  `assigneeId`, travando "Salvar" para sempre (mesma classe de bug de T141, numa combinação nunca
+  exercitada até agora). Corrigido ocultando Responsável/Projeto ao editar tarefa pessoal — nenhum
+  dos dois se aplica a esse caso (backend força `assignee_id = creator_id` e rejeita projeto sem
+  workspace). 3 novos testes (`TaskFormPage.test.tsx`, novo arquivo: pessoal oculta os campos e
+  salva; workspace continua exibindo ambos) + 2 testes de `PersonalTasksPage.test.tsx` reescritos
+  (clicar no cartão navega; clicar no checkbox não navega). Suíte completa do frontend: 56/56
+  passed
+
+---
+
 ## Phase 24: Frontend — User Story 7: Perfil do Usuário (Priority: P2)
 
 - [ ] T148 [P] [US7] Estender `frontend/src/services/authService.ts` (ou criar `userService.ts`) com
