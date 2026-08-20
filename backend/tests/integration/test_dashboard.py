@@ -283,3 +283,24 @@ def test_dashboard_counts_project_task_via_workspace_membership_without_duplicat
 
     assert response.status_code == 200
     assert response.json()["counts"]["pending"] == 2
+
+
+def test_dashboard_unaffected_by_recurring_tasks(
+    client, make_user, make_task, make_recurring_task, auth_headers
+):
+    """T024 (002-tarefas-fixas, FR-013) — Tarefas Fixas nunca entram nas
+    contagens do Dashboard: mesmas contagens antes e depois de criar e
+    concluir uma."""
+    user = make_user()
+    make_task(creator=user, status=TaskStatus.PENDING)
+
+    before = client.get("/api/v1/dashboard", headers=auth_headers(user)).json()["counts"]
+
+    recurring_task = make_recurring_task(owner=user)
+    client.post(
+        f"/api/v1/recurring-tasks/{recurring_task.id}/completions", headers=auth_headers(user)
+    )
+
+    after = client.get("/api/v1/dashboard", headers=auth_headers(user)).json()["counts"]
+
+    assert before == after

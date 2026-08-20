@@ -17,6 +17,7 @@ from app.routes.dashboard import router as dashboard_router
 from app.routes.history import router as history_router
 from app.routes.notifications import router as notifications_router
 from app.routes.projects import router as projects_router
+from app.routes.recurring_tasks import router as recurring_tasks_router
 from app.routes.task_members import router as task_members_router
 from app.routes.tasks import router as tasks_router
 from app.routes.users import router as users_router
@@ -63,4 +64,5 @@ api_router.include_router(attachments_router)
 api_router.include_router(notifications_router)
 api_router.include_router(history_router)
 api_router.include_router(admin_router)
+api_router.include_router(recurring_tasks_router)
 app.include_router(api_router)
