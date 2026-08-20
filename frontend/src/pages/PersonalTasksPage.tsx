@@ -14,6 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
+import { TasksTabs } from "@/components/layout/TasksTabs";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -497,6 +498,8 @@ export function PersonalTasksPage() {
 
   return (
     <div className="flex flex-col gap-5">
+      <TasksTabs />
+
       <TasksHero
         pendingCount={pendingCount}
         inProgressCount={inProgressCount}
