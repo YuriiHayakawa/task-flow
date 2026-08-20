@@ -112,7 +112,7 @@ describe("RecurringTasksPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar tarefa fixa" }));
 
     expect(await screen.findByText("Beber água")).toBeInTheDocument();
-    expect(screen.getByText("Todo dia")).toBeInTheDocument();
+    expect(screen.getByText("Diária")).toBeInTheDocument();
   });
 
   it("criar semanal exige selecionar ao menos um dia (botão desabilitado até então)", async () => {
@@ -130,7 +130,8 @@ describe("RecurringTasksPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Criar tarefa fixa" }));
     expect(await screen.findByText("Revisar e-mails")).toBeInTheDocument();
-    expect(screen.getByText("seg")).toBeInTheDocument();
+    expect(screen.getByText("Semanal")).toBeInTheDocument();
+    expect(screen.getByText("Seg")).toBeInTheDocument();
   });
 
   it("criar mensal exige um dia do mês válido", async () => {
@@ -147,7 +148,8 @@ describe("RecurringTasksPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar tarefa fixa" }));
 
     expect(await screen.findByText("Pagar boleto")).toBeInTheDocument();
-    expect(screen.getByText("Todo dia 10")).toBeInTheDocument();
+    expect(screen.getByText("Mensal")).toBeInTheDocument();
+    expect(screen.getByText("Dia 10")).toBeInTheDocument();
   });
 
   it("alterna concluída/pendente pelo toggle quando é ocorrência de hoje", async () => {
