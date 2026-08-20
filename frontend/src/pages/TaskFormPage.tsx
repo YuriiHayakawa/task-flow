@@ -137,6 +137,18 @@ export function TaskFormPage() {
 
   const backTo = isEdit && task ? `/tasks/${task.id}` : workspaceId ? `/workspaces/${workspaceId}` : "/workspaces";
 
+  // Tarefa pessoal (`workspace_id: null`) não tem responsável escolhível
+  // (backend força `assignee_id = creator_id`, imutável — task_service.py)
+  // nem projeto (exige workspace). Só chega aqui em modo de edição — criação
+  // sempre exige `workspaceId` (guarda logo acima) — mas o Select de
+  // Responsável não pode ser renderizado de qualquer forma: sem
+  // `useWorkspaceMembers` para popular `SelectItem`s, o Radix Select
+  // "corrige" sozinho um `value` sem item correspondente de volta para
+  // vazio, apagando o `assigneeId` já sincronizado da tarefa (mesma classe
+  // de bug documentada acima para `members`/`projects`, Fase 21) — travando
+  // o botão Salvar para sempre.
+  const isPersonalTask = isEdit && task?.workspace_id === null;
+
   // O `Select` de responsável/projeto só deve montar depois que `members`/
   // `projects` já carregaram: passar um `value` sem nenhum `SelectItem`
   // correspondente ainda montado faz o Radix Select "corrigir" sozinho o
@@ -163,7 +175,11 @@ export function TaskFormPage() {
       <PageHeader
         icon={FolderKanban}
         title={isEdit ? "Editar tarefa" : "Nova tarefa"}
-        description="Tarefas de workspace têm responsável e podem pertencer a um projeto."
+        description={
+          isPersonalTask
+            ? "Tarefa pessoal — responsável é sempre você, sem projeto vinculado."
+            : "Tarefas de workspace têm responsável e podem pertencer a um projeto."
+        }
       />
 
       {isFormLoading && <Skeleton className="h-96 w-full rounded-2xl" />}
@@ -203,49 +219,51 @@ export function TaskFormPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label className="flex items-center gap-1.5">
-                <UserRound className="size-3.5" />
-                Responsável
-              </Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger className="h-11 w-full rounded-xl">
-                  <SelectValue placeholder="Selecione um responsável" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.user_id} value={member.user_id}>
-                      {member.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {!isPersonalTask && (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label className="flex items-center gap-1.5">
+                  <UserRound className="size-3.5" />
+                  Responsável
+                </Label>
+                <Select value={assigneeId} onValueChange={setAssigneeId}>
+                  <SelectTrigger className="h-11 w-full rounded-xl">
+                    <SelectValue placeholder="Selecione um responsável" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((member) => (
+                      <SelectItem key={member.user_id} value={member.user_id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <Label className="flex items-center gap-1.5">
-                <FolderKanban className="size-3.5" />
-                Projeto
-              </Label>
-              <Select
-                value={projectId === "" ? NO_PROJECT_VALUE : projectId}
-                onValueChange={(value) => setProjectId(value === NO_PROJECT_VALUE ? "" : value)}
-              >
-                <SelectTrigger className="h-11 w-full rounded-xl">
-                  <SelectValue placeholder="Nenhum" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_PROJECT_VALUE}>Nenhum (tarefa do workspace)</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col gap-2">
+                <Label className="flex items-center gap-1.5">
+                  <FolderKanban className="size-3.5" />
+                  Projeto
+                </Label>
+                <Select
+                  value={projectId === "" ? NO_PROJECT_VALUE : projectId}
+                  onValueChange={(value) => setProjectId(value === NO_PROJECT_VALUE ? "" : value)}
+                >
+                  <SelectTrigger className="h-11 w-full rounded-xl">
+                    <SelectValue placeholder="Nenhum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_PROJECT_VALUE}>Nenhum (tarefa do workspace)</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <Label>Status</Label>

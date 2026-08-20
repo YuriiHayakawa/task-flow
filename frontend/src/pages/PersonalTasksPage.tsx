@@ -8,10 +8,10 @@ import {
   Flag,
   GripVertical,
   ListTodo,
-  PencilIcon,
   PlusIcon,
   type LucideIcon,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { TaskForm, type TaskFormValues } from "@/components/forms/TaskForm";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -26,7 +26,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePersonalTasks } from "@/hooks/usePersonalTasks";
 import { cn } from "@/lib/utils";
-import type { Task, TaskCreate, TaskStatus, TaskUpdate } from "@/types/task";
+import type { Task, TaskCreate, TaskStatus } from "@/types/task";
 
 /** Mesma linguagem visual do restante do produto: os ícones de status
  * reaproveitam exatamente os do Dashboard (`Circle`/`CircleDot`/
@@ -130,13 +130,19 @@ interface TaskCardProps {
   task: Task;
   index: number;
   isDragging: boolean;
-  onEdit: () => void;
+  onOpen: () => void;
   onToggleDone: () => void;
   onDragStart: (event: DragEvent<HTMLDivElement>) => void;
   onDragEnd: () => void;
 }
 
-function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
+/** Cartão inteiro é clicável (abre a página de detalhes da tarefa,
+ * `/tasks/{id}` — mesma usada em Workspace/Projeto), exceto o checkbox
+ * (`stopPropagation`, que só alterna concluída/pendente sem navegar). Não é
+ * um `<button>` nativo porque o `Checkbox` do Radix já é um botão por
+ * dentro — botão dentro de botão é HTML inválido — então usa `role="button"`
+ * + teclado (Enter/Espaço) para manter acessibilidade sem essa limitação. */
+function TaskCard({ task, index, isDragging, onOpen, onToggleDone, onDragStart, onDragEnd }: TaskCardProps) {
   const due = task.due_date ? describeDueDate(task.due_date, task.status === "DONE") : null;
   const isDone = task.status === "DONE";
 
@@ -145,6 +151,15 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
       draggable
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
       style={{ animationDelay: `${Math.min(index * 40, 200)}ms` }}
       className={cn(
         "group animate-in fade-in slide-in-from-bottom-1 flex cursor-grab flex-col gap-2 rounded-xl border border-l-4 bg-card p-3 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing",
@@ -154,12 +169,14 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
     >
       <div className="flex items-start gap-1">
         <GripVertical className="mt-1.5 size-3.5 shrink-0 text-transparent transition-colors group-hover:text-muted-foreground/40" />
-        <Checkbox
-          checked={isDone}
-          onCheckedChange={onToggleDone}
-          aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
-          className="mt-0.5"
-        />
+        <span onClick={(event) => event.stopPropagation()}>
+          <Checkbox
+            checked={isDone}
+            onCheckedChange={onToggleDone}
+            aria-label={isDone ? "Marcar como pendente" : "Marcar como concluída"}
+            className="mt-0.5"
+          />
+        </span>
         <p
           className={cn(
             "flex-1 text-sm font-medium",
@@ -168,15 +185,6 @@ function TaskCard({ task, index, isDragging, onEdit, onToggleDone, onDragStart, 
         >
           {task.title}
         </p>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onEdit}
-          aria-label="Editar tarefa"
-          className="opacity-0 transition-opacity group-hover:opacity-100"
-        >
-          <PencilIcon />
-        </Button>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 pl-9">
         <span
@@ -219,7 +227,7 @@ interface TaskColumnProps {
   dropRingClass: string;
   tasks: Task[];
   draggingId: string | null;
-  onEdit: (task: Task) => void;
+  onOpenTask: (task: Task) => void;
   onToggleDone: (task: Task) => void;
   onDragStartTask: (taskId: string) => (event: DragEvent<HTMLDivElement>) => void;
   onDragEndTask: () => void;
@@ -237,7 +245,7 @@ function TaskColumn({
   dropRingClass,
   tasks,
   draggingId,
-  onEdit,
+  onOpenTask,
   onToggleDone,
   onDragStartTask,
   onDragEndTask,
@@ -295,7 +303,7 @@ function TaskColumn({
             task={task}
             index={index}
             isDragging={draggingId === task.id}
-            onEdit={() => onEdit(task)}
+            onOpen={() => onOpenTask(task)}
             onToggleDone={() => onToggleDone(task)}
             onDragStart={onDragStartTask(task.id)}
             onDragEnd={onDragEndTask}
@@ -307,18 +315,12 @@ function TaskColumn({
 }
 
 export function PersonalTasksPage() {
+  const navigate = useNavigate();
   const { tasks, isLoading, error, createTask, updateTask } = usePersonalTasks();
   const [formOpen, setFormOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   function openCreateForm() {
-    setEditingTask(null);
-    setFormOpen(true);
-  }
-
-  function openEditForm(task: Task) {
-    setEditingTask(task);
     setFormOpen(true);
   }
 
@@ -330,11 +332,7 @@ export function PersonalTasksPage() {
       priority: values.priority,
       due_date: values.due_date === "" ? null : values.due_date,
     };
-    if (editingTask) {
-      await updateTask(editingTask.id, payload satisfies TaskUpdate);
-    } else {
-      await createTask(payload satisfies TaskCreate);
-    }
+    await createTask(payload satisfies TaskCreate);
     setFormOpen(false);
   }
 
@@ -427,7 +425,7 @@ export function PersonalTasksPage() {
               dropRingClass={column.dropRingClass}
               tasks={tasks.filter((task) => task.status === column.status)}
               draggingId={draggingId}
-              onEdit={openEditForm}
+              onOpenTask={(task) => navigate(`/tasks/${task.id}`)}
               onToggleDone={toggleDone}
               onDragStartTask={handleDragStartTask}
               onDragEndTask={() => setDraggingId(null)}
@@ -437,27 +435,21 @@ export function PersonalTasksPage() {
         </div>
       )}
 
+      {/* Edição de tarefa existente acontece na página de detalhes
+         (`/tasks/{id}`, botão "Editar") — este Sheet fica só para criação,
+         mesma divisão de responsabilidade já usada em Workspace/Projeto. */}
       <Sheet open={formOpen} onOpenChange={setFormOpen}>
         <SheetContent>
           <SheetHeader>
             <div className="flex items-center gap-2.5">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
-                {editingTask ? (
-                  <PencilIcon className="size-4 text-white" />
-                ) : (
-                  <PlusIcon className="size-4 text-white" />
-                )}
+                <PlusIcon className="size-4 text-white" />
               </div>
-              <SheetTitle>{editingTask ? "Editar tarefa" : "Nova tarefa"}</SheetTitle>
+              <SheetTitle>Nova tarefa</SheetTitle>
             </div>
           </SheetHeader>
           <div className="px-4 pb-4">
-            <TaskForm
-              key={editingTask?.id ?? "new"}
-              task={editingTask ?? undefined}
-              onSubmit={handleSubmit}
-              onCancel={() => setFormOpen(false)}
-            />
+            <TaskForm onSubmit={handleSubmit} onCancel={() => setFormOpen(false)} />
           </div>
         </SheetContent>
       </Sheet>
