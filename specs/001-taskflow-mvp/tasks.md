@@ -1082,10 +1082,12 @@ quais não é membro.
 
 ## Phase 26: Frontend — User Story 9: Checklists em Tarefas (Priority: P3)
 
-- [ ] T155 [P] [US9] Criar `frontend/src/services/checklistService.ts` (depende de T120, T123)
-- [ ] T156 [P] [US9] Criar `frontend/src/hooks/useChecklist.ts` (depende de T155)
-- [ ] T157 [US9] Adicionar seção de checklist em `frontend/src/pages/TaskDetailPage.tsx` (adicionar
-  item, marcar concluído/pendente, remover — restrito a participantes) (depende de T156, T141)
+- [x] T155 [P] [US9] Criar `frontend/src/services/checklistService.ts` (depende de T120, T123)
+- [x] T156 [P] [US9] Criar `frontend/src/hooks/useChecklist.ts` (depende de T155)
+- [x] T157 [US9] Adicionar seção de checklist em `frontend/src/pages/TaskDetailPage.tsx` (adicionar
+  item, marcar concluído/pendente, remover — restrito a participantes) (depende de T156, T141) —
+  progresso (`N de M` + barra), item riscado quando concluído, remoção sem confirmação (ação
+  leve/reversível, diferente de participante/anexo/tarefa)
 
 **Commit sugerido**: `feat(frontend): implementa checklists em tarefas (US9)`
 
@@ -1093,10 +1095,13 @@ quais não é membro.
 
 ## Phase 27: Frontend — User Story 10: Anexos em Tarefas (Priority: P3)
 
-- [ ] T158 [P] [US10] Criar `frontend/src/services/attachmentService.ts` (depende de T120, T123)
-- [ ] T159 [P] [US10] Criar `frontend/src/hooks/useAttachments.ts` (depende de T158)
-- [ ] T160 [US10] Adicionar seção de anexos em `frontend/src/pages/TaskDetailPage.tsx` (upload,
-  listagem, download, remoção condicionada a uploader/Owner/Admin) (depende de T159, T141)
+- [x] T158 [P] [US10] Criar `frontend/src/services/attachmentService.ts` (depende de T120, T123)
+- [x] T159 [P] [US10] Criar `frontend/src/hooks/useAttachments.ts` (depende de T158)
+- [x] T160 [US10] Adicionar seção de anexos em `frontend/src/pages/TaskDetailPage.tsx` (upload,
+  listagem, download, remoção condicionada a uploader/Owner/Admin) (depende de T159, T141) — download
+  via blob autenticado (`httpClient` + link temporário, já que a rota exige `Authorization: Bearer`
+  e não dá para navegar direto pra URL); `accept` do input e dica de texto alinhados a
+  `ATTACHMENTS_ALLOWED_CONTENT_TYPES`/`ATTACHMENTS_MAX_SIZE_BYTES` (config do backend)
 
 🎯 **Marco: Colaboração concluída (frontend)** (Comentários, Checklists e Anexos — US6/US9/US10)
 
@@ -1117,12 +1122,34 @@ quais não é membro.
 
 ## Phase 29: Frontend — User Story 12: Histórico de Alterações da Tarefa (Priority: P3)
 
-- [ ] T164 [P] [US12] Criar `frontend/src/services/taskHistoryService.ts` (depende de T120, T123)
-- [ ] T165 [P] [US12] Criar `frontend/src/hooks/useTaskHistory.ts` (depende de T164)
-- [ ] T166 [US12] Adicionar seção de histórico (ordem cronológica) em
-  `frontend/src/pages/TaskDetailPage.tsx` (depende de T165, T141)
+- [x] T164 [P] [US12] Criar `frontend/src/services/taskHistoryService.ts` (depende de T120, T123)
+- [x] T165 [P] [US12] Criar `frontend/src/hooks/useTaskHistory.ts` (depende de T164)
+- [x] T166 [US12] Adicionar seção de histórico (ordem cronológica) em
+  `frontend/src/pages/TaskDetailPage.tsx` (depende de T165, T141) — timeline vertical na barra
+  lateral; `describeHistoryEntry` traduz os 4 campos rastreados por `TaskService.update`
+  (status/priority/due_date/assignee_id, T110) para frase legível, usando os mesmos
+  `STATUS_LABEL`/`PRIORITY_LABEL` já existentes (nenhum rótulo novo inventado)
 
 **Commit sugerido**: `feat(frontend): implementa histórico de alterações da tarefa (US12)`
+
+---
+
+- [ ] T166b _(task de acompanhamento, não prevista originalmente)_ Reformulação visual completa de
+  `TaskDetailPage.tsx` — pedido explícito do usuário, com referência visual de um mockup de terceiro
+  (campos "Categoria"/"Tags" do mockup **não** replicados: não existem no modelo de dados do
+  TaskFlow). Proposta apresentada primeiro como protótipo visual (canvas de design) para validação
+  antes da implementação. Cabeçalho reconstruído com a mesma identidade escura/textura/blobs do hero
+  de "Minhas tarefas" (Fase 18); layout de duas colunas (conteúdo principal + barra lateral
+  "Detalhes da tarefa" com Prazo/Criada em/Criada por/Responsável/Workspace/Projeto, mais Histórico
+  e o botão "Excluir tarefa", antes misturado às demais ações). **Edição inline de Status/Prioridade**
+  na barra lateral (Select que salva direto via `updateTask`, decisão explícita do usuário — não
+  precisa mais abrir "Editar" só pra isso); "Marcar como concluída"/"Editar" permanecem no
+  cabeçalho. Escopo combinado com a implementação de T157/T160/T166 (Checklist/Anexos/Histórico),
+  também decisão explícita do usuário. 24 testes em `TaskDetailPage.test.tsx` (11 novos, cobrindo as
+  3 seções novas e a edição inline); `tests/setup.ts` ganhou polyfills de `scrollIntoView`/Pointer
+  Capture (ausentes no jsdom, necessários para testar a abertura do Select do Radix — primeiro teste
+  do projeto a interagir de fato com um Select, não só verificar presença). Suíte completa do
+  frontend: 68/68 passed
 
 ---
 
