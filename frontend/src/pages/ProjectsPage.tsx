@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Calendar, FolderKanban, PlusIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, FolderKanban, Lock, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
@@ -100,34 +100,45 @@ interface ProjectCardProps {
 
 /** Mesmo tratamento do `WorkspaceCard` (cor determinística por id, glow no
  * hover, seta que desliza) — grade de projetos ganha a mesma vida que a
- * grade de workspaces. */
+ * grade de workspaces.
+ *
+ * 003-membros-projeto/FR-006: um projeto com `is_member: false` (só ocorre
+ * para Admin — vê a listagem completa, mas não participa de todos)
+ * renderiza bloqueado — cadeado, sem navegação ao clicar — em vez de deixar
+ * a pessoa abrir e esbarrar num `404` inesperado (research.md #6). */
 function ProjectCard({ project, onOpen }: ProjectCardProps) {
   const accent = pickAccentColor(project.id);
   const createdLabel = new Date(project.created_at).toLocaleDateString("pt-BR");
+  const locked = !project.is_member;
 
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-    >
-      <div
-        className={cn(
-          "pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100",
-          accent.glowClass,
-        )}
-      />
-
-      <div className="relative">
+  const body = (
+    <>
+      {!locked && (
         <div
           className={cn(
-            "flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-transform duration-200 group-hover:scale-105",
+            "pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100",
+            accent.glowClass,
+          )}
+        />
+      )}
+
+      <div className="relative flex items-start justify-between gap-2">
+        <div
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md transition-transform duration-200",
+            locked ? "grayscale" : "group-hover:scale-105",
             accent.gradientClass,
             accent.shadowClass,
           )}
         >
           <FolderKanban className="size-5 text-white" strokeWidth={2.25} />
         </div>
+        {locked && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            <Lock className="size-2.5" />
+            Sem acesso
+          </span>
+        )}
       </div>
 
       <div className="relative flex-1">
@@ -142,8 +153,31 @@ function ProjectCard({ project, onOpen }: ProjectCardProps) {
           <Calendar className="size-3" />
           Criado em {createdLabel}
         </span>
-        <ArrowRight className="size-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+        {!locked && (
+          <ArrowRight className="size-3.5 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
+        )}
       </div>
+    </>
+  );
+
+  if (locked) {
+    return (
+      <div
+        aria-label={`${project.name} — sem acesso, peça para um membro do projeto te adicionar`}
+        className="group relative flex cursor-not-allowed flex-col gap-4 overflow-hidden rounded-2xl border bg-muted/40 p-5 text-left opacity-75"
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border bg-card p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+    >
+      {body}
     </button>
   );
 }

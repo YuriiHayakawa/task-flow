@@ -24,6 +24,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProjectMembers } from "@/hooks/useProjectMembers";
 import { useProjects } from "@/hooks/useProjects";
 import { useTask } from "@/hooks/useTask";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
@@ -51,7 +52,8 @@ export function TaskFormPage() {
   const { task, isLoading: taskLoading, error: taskError, updateTask } = useTask(taskId ?? "");
 
   const workspaceId = isEdit ? (task?.workspace_id ?? "") : (searchParams.get("workspace_id") ?? "");
-  const { members, isLoading: membersLoading } = useWorkspaceMembers(workspaceId);
+  const { members: workspaceMembers, isLoading: workspaceMembersLoading } =
+    useWorkspaceMembers(workspaceId);
   const { projects, isLoading: projectsLoading } = useProjects(workspaceId);
 
   const [title, setTitle] = useState("");
@@ -64,6 +66,14 @@ export function TaskFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const initializedFromTask = useRef(false);
+
+  // 003-membros-projeto/FR-009: quando a tarefa pertence a um projeto, só
+  // membros DESSE projeto podem ser responsável — não todo mundo do
+  // workspace (research.md #7). `useProjectMembers` já lida com
+  // `projectId` vazio (retorna lista vazia, sem requisição).
+  const { members: projectMembers, isLoading: projectMembersLoading } = useProjectMembers(projectId);
+  const members = projectId ? projectMembers : workspaceMembers;
+  const membersLoading = projectId ? projectMembersLoading : workspaceMembersLoading;
 
   // Em modo de edição, a tarefa chega de forma assíncrona — sincroniza o
   // formulário assim que ela carrega, uma única vez (não sobrescreve o que
@@ -227,7 +237,7 @@ export function TaskFormPage() {
                   Responsável
                 </Label>
                 <Select value={assigneeId} onValueChange={setAssigneeId}>
-                  <SelectTrigger className="h-11 w-full rounded-xl">
+                  <SelectTrigger aria-label="Responsável" className="h-11 w-full rounded-xl">
                     <SelectValue placeholder="Selecione um responsável" />
                   </SelectTrigger>
                   <SelectContent>

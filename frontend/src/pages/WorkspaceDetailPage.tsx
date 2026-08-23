@@ -4,6 +4,7 @@ import {
   Building2,
   Calendar,
   FolderKanban,
+  Lock,
   PencilIcon,
   Trash2,
   Users,
@@ -310,24 +311,49 @@ export function WorkspaceDetailPage() {
 
               {!isLoadingProjects && previewProjects.length > 0 && (
                 <div className="flex flex-col gap-2">
-                  {previewProjects.map((project) => (
-                    <button
-                      key={project.id}
-                      type="button"
-                      onClick={() => navigate(`/workspaces/${workspace.id}/projects/${project.id}`)}
-                      className="group flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm"
-                    >
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-sm shadow-blue-900/20">
-                        <FolderKanban className="size-4 text-white" strokeWidth={2.25} />
+                  {previewProjects.map((project) =>
+                    project.is_member ? (
+                      <button
+                        key={project.id}
+                        type="button"
+                        onClick={() => navigate(`/workspaces/${workspace.id}/projects/${project.id}`)}
+                        className="group flex items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-sm"
+                      >
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-sm shadow-blue-900/20">
+                          <FolderKanban className="size-4 text-white" strokeWidth={2.25} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{project.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {project.description ?? "Sem descrição."}
+                          </p>
+                        </div>
+                      </button>
+                    ) : (
+                      // 003-membros-projeto/FR-006: só ocorre para Admin (vê
+                      // a listagem completa mas não participa de todos) —
+                      // sem navegação, mesmo tratamento de ProjectsPage.tsx.
+                      <div
+                        key={project.id}
+                        aria-label={`${project.name} — sem acesso`}
+                        className="flex cursor-not-allowed items-center gap-3 rounded-xl border bg-muted/40 p-3 opacity-75"
+                      >
+                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-sm shadow-blue-900/20 grayscale">
+                          <FolderKanban className="size-4 text-white" strokeWidth={2.25} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{project.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {project.description ?? "Sem descrição."}
+                          </p>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          <Lock className="size-2.5" />
+                          Sem acesso
+                        </span>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">{project.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {project.description ?? "Sem descrição."}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
+                    ),
+                  )}
                   {remainingProjects > 0 && (
                     <p className="pt-1 text-center text-xs text-muted-foreground">
                       +{remainingProjects} {remainingProjects === 1 ? "outro projeto" : "outros projetos"}

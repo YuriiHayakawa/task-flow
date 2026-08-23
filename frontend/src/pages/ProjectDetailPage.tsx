@@ -1,3 +1,4 @@
+import axios from "axios";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -10,9 +11,11 @@ import {
   PencilIcon,
   PlusIcon,
   Trash2,
+  UserPlus,
+  Users,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type DragEvent } from "react";
+import { useState, type DragEvent, type MouseEvent, type FormEvent } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { ProjectForm, type ProjectFormValues } from "@/components/forms/ProjectForm";
@@ -29,6 +32,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -37,13 +48,18 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProject } from "@/hooks/useProject";
+import { useProjectMembers } from "@/hooks/useProjectMembers";
 import { useTasks } from "@/hooks/useTasks";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { cn } from "@/lib/utils";
+import type { ApiError } from "@/types/apiError";
+import type { ProjectMember } from "@/types/projectMember";
 import type { Project, ProjectUpdate } from "@/types/project";
 import type { Task, TaskStatus } from "@/types/task";
+import type { WorkspaceMember } from "@/types/workspace";
 import { pickAccentColor } from "@/utils/accentColor";
+import { getApiErrorMessage } from "@/utils/apiErrorMessage";
 import { getInitials } from "@/utils/initials";
 import {
   DUE_CHIP_CLASS,
@@ -127,6 +143,200 @@ function DeleteProjectDialog({ projectName, onConfirm }: DeleteProjectDialogProp
   );
 }
 
+interface RemoveProjectMemberDialogProps {
+  member: ProjectMember;
+  onConfirm: () => Promise<void>;
+}
+
+/** Mesmo padrão de `RemoveMemberDialog` (`WorkspaceMembersPage.tsx`):
+ * estado de erro/"removendo..." autocontido, incl. a lista de tarefas
+ * pendentes quando o backend recusa por tarefas ativas no projeto
+ * (FR-010).
+ *
+ * Diferença deliberada: `AlertDialogAction` do Radix fecha o diálogo de
+ * forma SÍNCRONA ao ser clicado, antes do resultado de `onConfirm` (que é
+ * assíncrono) — sem tratar isso, a mensagem de erro (ex.: lista de tarefas
+ * pendentes) nunca chegaria a aparecer, porque o diálogo já teria fechado.
+ * Por isso o diálogo é controlado (`open`/`onOpenChange`) e `handleConfirm`
+ * chama `event.preventDefault()` antes de qualquer `await` — só fecha
+ * manualmente (`setOpen(false)`) quando `onConfirm` realmente é bem-
+ * sucedido. */
+function RemoveProjectMemberDialog({ member, onConfirm }: RemoveProjectMemberDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingTasks, setPendingTasks] = useState<string[]>([]);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setError(null);
+      setPendingTasks([]);
+    }
+  }
+
+  async function handleConfirm(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    setError(null);
+    setPendingTasks([]);
+    setIsRemoving(true);
+    try {
+      await onConfirm();
+      setOpen(false);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Não foi possível remover este membro."));
+      if (axios.isAxiosError(err)) {
+        const details = (err.response?.data as ApiError | undefined)?.error?.details;
+        const titles = details
+          ?.map((detail) => (typeof detail.title === "string" ? detail.title : null))
+          .filter((title): title is string => title !== null);
+        if (titles && titles.length > 0) setPendingTasks(titles);
+      }
+    } finally {
+      setIsRemoving(false);
+    }
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="icon-sm" aria-label={`Remover ${member.name}`}>
+          <Trash2 className="size-4 text-destructive" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remover {member.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta pessoa perde acesso ao quadro e às tarefas deste projeto.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && (
+          <div className="text-sm text-destructive">
+            <p>{error}</p>
+            {pendingTasks.length > 0 && (
+              <ul className="mt-1.5 list-inside list-disc text-xs">
+                {pendingTasks.map((title) => (
+                  <li key={title}>{title}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isRemoving}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleConfirm} disabled={isRemoving} variant="destructive">
+            {isRemoving ? "Removendo..." : "Remover"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+interface AddProjectMemberFormProps {
+  /** Só membros do workspace que ainda não são membros deste projeto —
+   * FR-002 já exige isso no backend (não é possível adicionar alguém de
+   * fora do workspace a um projeto); o dropdown evita até a tentativa,
+   * listando só quem já é elegível, em vez de um campo de e-mail livre. */
+  availableMembers: WorkspaceMember[];
+  onAdd: (userId: string) => Promise<void>;
+}
+
+function AddProjectMemberForm({ availableMembers, onAdd }: AddProjectMemberFormProps) {
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await onAdd(selectedUserId);
+      setSelectedUserId("");
+    } catch (err) {
+      setError(getApiErrorMessage(err, "Não foi possível adicionar esta pessoa."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (availableMembers.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Todos os membros do workspace já participam deste projeto.
+      </p>
+    );
+  }
+
+  // Valor exibido no trigger é explícito (só o nome) em vez de deixar o
+  // Radix portar o conteúdo rico do SelectItem (avatar + e-mail) para dentro
+  // da caixinha fechada — isso manteria o trigger poluído/estourando altura
+  // e criaria um estado intermediário onde o nome sozinho fica duplicado no
+  // DOM (trigger + linha da lista) até o formulário resetar a seleção.
+  const selectedMember = availableMembers.find((member) => member.user_id === selectedUserId);
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="project-member-select">Adicionar membro</Label>
+        <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+          <SelectTrigger
+            id="project-member-select"
+            className="w-full rounded-xl border-input bg-card px-4 text-sm transition-all duration-200 hover:border-blue-300 hover:shadow-sm data-placeholder:text-muted-foreground data-[size=default]:h-11 [&>svg]:text-muted-foreground [&>svg]:transition-transform [&>svg]:duration-200 [&[data-state=open]>svg]:rotate-180"
+          >
+            <SelectValue placeholder="Selecione uma pessoa do workspace">
+              {selectedMember?.name}
+            </SelectValue>
+          </SelectTrigger>
+          {/* position="popper" abre a lista ABAIXO do campo (como um menu
+           * normal) em vez do padrão "item-aligned" do Radix, que sobrepõe o
+           * painel por cima do próprio campo — o efeito de "tampar" o input
+           * que pareceu quebrado. */}
+          <SelectContent position="popper" align="start" sideOffset={6} className="rounded-xl p-1.5">
+            {availableMembers.map((member) => (
+              <SelectItem
+                key={member.user_id}
+                value={member.user_id}
+                className="rounded-lg py-2 pl-2 focus:bg-blue-50 focus:text-foreground dark:focus:bg-blue-500/15"
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Avatar size="sm" className="size-7 shrink-0 rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[10px] font-semibold text-white">
+                      {getInitials(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate font-medium">{member.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">{member.email}</span>
+                  </span>
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Só pessoas que já são membros do workspace aparecem aqui.
+        </p>
+      </div>
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          disabled={isSubmitting || !selectedUserId}
+          className="rounded-xl bg-blue-600 text-white hover:bg-blue-500"
+        >
+          <UserPlus className="size-4" />
+          {isSubmitting ? "Adicionando..." : "Adicionar"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 interface FlowStageProps {
   icon: LucideIcon;
   label: string;
@@ -160,6 +370,7 @@ interface ProjectHeroProps {
   onCreateTask: () => void;
   onEdit: () => void;
   onDelete: () => Promise<void>;
+  onManageMembers: () => void;
 }
 
 /** Mesma identidade escura dos outros heróis — cor do ícone segue o mesmo
@@ -178,6 +389,7 @@ function ProjectHero({
   onCreateTask,
   onEdit,
   onDelete,
+  onManageMembers,
 }: ProjectHeroProps) {
   const accent = pickAccentColor(project.id);
 
@@ -219,6 +431,14 @@ function ProjectHero({
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {canManage && (
               <>
+                <button
+                  type="button"
+                  onClick={onManageMembers}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                >
+                  <Users className="size-3.5" />
+                  Membros
+                </button>
                 <button
                   type="button"
                   onClick={onEdit}
@@ -479,7 +699,14 @@ export function ProjectDetailPage() {
     error: tasksError,
     updateTask,
   } = useTasks({ project_id: projectId ?? "" });
+  const {
+    members: projectMembers,
+    isLoading: projectMembersLoading,
+    addMember: addProjectMember,
+    removeMember: removeProjectMember,
+  } = useProjectMembers(projectId ?? "");
   const [editOpen, setEditOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   if (!workspaceId || !projectId) {
@@ -487,6 +714,13 @@ export function ProjectDetailPage() {
   }
 
   const canManage = workspace?.my_role === "OWNER" || workspace?.my_role === "ADMIN";
+  // FR-002: só quem já é membro do workspace pode ser adicionado ao
+  // projeto — filtra fora de quem já está no projeto para o dropdown de
+  // "adicionar" não repetir gente já adicionada.
+  const availableToAddToProject = members.filter(
+    (workspaceMember) =>
+      !projectMembers.some((projectMember) => projectMember.user_id === workspaceMember.user_id),
+  );
 
   function assigneeName(assigneeId: string): string {
     return members.find((member) => member.user_id === assigneeId)?.name ?? "—";
@@ -504,6 +738,10 @@ export function ProjectDetailPage() {
   async function handleDelete() {
     await deleteProject();
     navigate(`/workspaces/${workspaceId}/projects`);
+  }
+
+  async function handleAddProjectMember(userId: string) {
+    await addProjectMember({ user_id: userId });
   }
 
   function handleDragStartTask(taskId: string) {
@@ -556,6 +794,7 @@ export function ProjectDetailPage() {
             onCreateTask={() => navigate(`/tasks/new?workspace_id=${workspaceId}&project_id=${projectId}`)}
             onEdit={() => setEditOpen(true)}
             onDelete={handleDelete}
+            onManageMembers={() => setMembersOpen(true)}
           />
 
           {tasksLoading && (
@@ -621,6 +860,58 @@ export function ProjectDetailPage() {
                   onSubmit={handleEditSubmit}
                   onCancel={() => setEditOpen(false)}
                 />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <Sheet open={membersOpen} onOpenChange={setMembersOpen}>
+            <SheetContent>
+              <SheetHeader>
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
+                    <Users className="size-4 text-white" />
+                  </div>
+                  <SheetTitle>Membros do projeto</SheetTitle>
+                </div>
+              </SheetHeader>
+              <div className="flex flex-col gap-4 px-4 pb-4">
+                {projectMembersLoading && (
+                  <div className="flex flex-col gap-2">
+                    <Skeleton className="h-14 w-full rounded-xl" />
+                    <Skeleton className="h-14 w-full rounded-xl" />
+                  </div>
+                )}
+                {!projectMembersLoading && (
+                  <div className="flex flex-col gap-2">
+                    {projectMembers.map((member) => (
+                      <div
+                        key={member.user_id}
+                        className="flex items-center gap-3 rounded-xl border bg-card p-3"
+                      >
+                        <Avatar size="sm" className="rounded-lg">
+                          <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
+                            {getInitials(member.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{member.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                        </div>
+                        <RemoveProjectMemberDialog
+                          member={member}
+                          onConfirm={() => removeProjectMember(member.user_id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border-t pt-4">
+                  <AddProjectMemberForm
+                    availableMembers={availableToAddToProject}
+                    onAdd={handleAddProjectMember}
+                  />
+                </div>
               </div>
             </SheetContent>
           </Sheet>
