@@ -98,6 +98,20 @@ class FakeWorkspaceMemberRepository:
         return self.roles.get((workspace_id, user_id))
 
 
+class FakeProjectMemberRepository:
+    """003-membros-projeto/US4 — permite testar a validação de membership
+    de projeto na atribuição de responsável sem tocar no banco."""
+
+    def __init__(self) -> None:
+        self.members: set[tuple[uuid.UUID, uuid.UUID]] = set()
+
+    def seed(self, project_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self.members.add((project_id, user_id))
+
+    def is_member(self, project_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+        return (project_id, user_id) in self.members
+
+
 class FakeTaskMemberRepository:
     """T106 (US11) — permite testar a resolução de destinatários de
     `TASK_CHANGED` (participantes explícitos) sem tocar no banco."""
@@ -161,6 +175,11 @@ def member_repo() -> FakeWorkspaceMemberRepository:
 
 
 @pytest.fixture()
+def project_member_repo() -> FakeProjectMemberRepository:
+    return FakeProjectMemberRepository()
+
+
+@pytest.fixture()
 def task_member_repo() -> FakeTaskMemberRepository:
     return FakeTaskMemberRepository()
 
@@ -188,6 +207,7 @@ def task_service(
     notification_repo: FakeNotificationRepository,
     task_history_repo: FakeTaskHistoryRepository,
     attachment_repo: FakeAttachmentRepository,
+    project_member_repo: FakeProjectMemberRepository,
 ) -> TaskService:
     return TaskService(
         FakeTaskRepository(),
@@ -197,6 +217,7 @@ def task_service(
         notification_repo,
         task_history_repo,
         attachment_repo,
+        project_member_repo,
     )
 
 
@@ -232,11 +253,17 @@ def test_create_rejects_nonexistent_project(task_service: TaskService) -> None:
 
 
 def test_create_derives_workspace_from_project(
-    task_service: TaskService, project_repo: FakeProjectRepository, member_repo: FakeWorkspaceMemberRepository
+    task_service: TaskService,
+    project_repo: FakeProjectRepository,
+    member_repo: FakeWorkspaceMemberRepository,
+    project_member_repo: FakeProjectMemberRepository,
 ) -> None:
     creator_id = uuid.uuid4()
     project = project_repo.seed(workspace_id=uuid.uuid4())
     member_repo.seed(project.workspace_id, creator_id, WorkspaceRole.MEMBER)
+    # 003-membros-projeto/FR-009: sem membership de projeto, o criador não
+    # poderia virar responsável padrão da tarefa.
+    project_member_repo.seed(project.id, creator_id)
 
     task = task_service.create(
         TaskCreate(title="Tarefa de projeto", project_id=project.id), creator_id=creator_id
@@ -297,6 +324,68 @@ def test_create_accepts_assignee_member_of_workspace(
     )
 
     assert task.assignee_id == assignee_id
+
+
+def test_create_rejects_assignee_not_member_of_project(
+    task_service: TaskService,
+    project_repo: FakeProjectRepository,
+    member_repo: FakeWorkspaceMemberRepository,
+) -> None:
+    """003-membros-projeto/FR-009: ser membro do workspace não basta — o
+    responsável de uma tarefa de projeto restrito precisa ser membro do
+    projeto."""
+    creator_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    project = project_repo.seed(workspace_id=uuid.uuid4())
+    member_repo.seed(project.workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(project.workspace_id, assignee_id, WorkspaceRole.MEMBER)
+
+    with pytest.raises(BusinessRuleViolationError):
+        task_service.create(
+            TaskCreate(title="Tarefa", project_id=project.id, assignee_id=assignee_id),
+            creator_id=creator_id,
+        )
+
+
+def test_create_accepts_assignee_member_of_project(
+    task_service: TaskService,
+    project_repo: FakeProjectRepository,
+    member_repo: FakeWorkspaceMemberRepository,
+    project_member_repo: FakeProjectMemberRepository,
+) -> None:
+    creator_id = uuid.uuid4()
+    assignee_id = uuid.uuid4()
+    project = project_repo.seed(workspace_id=uuid.uuid4())
+    member_repo.seed(project.workspace_id, creator_id, WorkspaceRole.OWNER)
+    member_repo.seed(project.workspace_id, assignee_id, WorkspaceRole.MEMBER)
+    project_member_repo.seed(project.id, assignee_id)
+
+    task = task_service.create(
+        TaskCreate(title="Tarefa", project_id=project.id, assignee_id=assignee_id),
+        creator_id=creator_id,
+    )
+
+    assert task.assignee_id == assignee_id
+
+
+def test_create_owner_can_be_assignee_of_project_without_explicit_membership(
+    task_service: TaskService,
+    project_repo: FakeProjectRepository,
+    member_repo: FakeWorkspaceMemberRepository,
+) -> None:
+    """Mesma fórmula de acesso da visibilidade (data-model.md): Owner do
+    workspace sempre tem acesso ao projeto, mesmo sem `ProjectMember`
+    explícito — vale também para ser designado responsável."""
+    owner_id = uuid.uuid4()
+    project = project_repo.seed(workspace_id=uuid.uuid4())
+    member_repo.seed(project.workspace_id, owner_id, WorkspaceRole.OWNER)
+
+    task = task_service.create(
+        TaskCreate(title="Tarefa", project_id=project.id, assignee_id=owner_id),
+        creator_id=owner_id,
+    )
+
+    assert task.assignee_id == owner_id
 
 
 def test_update_status_to_done_sets_completed_at(task_service: TaskService) -> None:

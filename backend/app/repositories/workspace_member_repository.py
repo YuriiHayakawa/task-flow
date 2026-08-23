@@ -73,6 +73,17 @@ class WorkspaceMemberRepository:
         stmt = select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user_id)
         return list(self.db.scalars(stmt))
 
+    def list_owned_workspace_ids_for_user(self, user_id: uuid.UUID) -> list[uuid.UUID]:
+        """Variante de `list_workspace_ids_for_user` filtrada a
+        `role == OWNER` — usada pela fórmula de acesso a projeto (003-
+        membros-projeto, research.md #2): o Owner de um workspace sempre
+        acessa todos os projetos dele, mesmo sem ser `ProjectMember`
+        explícito."""
+        stmt = select(WorkspaceMember.workspace_id).where(
+            WorkspaceMember.user_id == user_id, WorkspaceMember.role == WorkspaceRole.OWNER
+        )
+        return list(self.db.scalars(stmt))
+
     def update(self, member: WorkspaceMember) -> WorkspaceMember:
         self.db.flush()
         return member

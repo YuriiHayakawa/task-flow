@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.models.user import User
+from app.repositories.project_member_repository import ProjectMemberRepository
 from app.repositories.task_repository import TaskRepository
 from app.repositories.workspace_member_repository import WorkspaceMemberRepository
 from app.schemas.dashboard import DashboardSummary
@@ -15,7 +16,9 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 def get_dashboard_service(db: Session = Depends(get_db)) -> DashboardService:
-    return DashboardService(TaskRepository(db), WorkspaceMemberRepository(db))
+    return DashboardService(
+        TaskRepository(db), WorkspaceMemberRepository(db), ProjectMemberRepository(db)
+    )
 
 
 @router.get("", response_model=DashboardSummary)

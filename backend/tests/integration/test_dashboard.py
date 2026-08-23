@@ -173,7 +173,14 @@ def test_dashboard_scoped_to_workspace_excludes_personal_and_other_workspaces(
 
 
 def test_dashboard_scoped_to_project_excludes_other_projects_and_direct_workspace_tasks(
-    client, make_user, make_workspace, add_workspace_member, make_project, make_task, auth_headers
+    client,
+    make_user,
+    make_workspace,
+    add_workspace_member,
+    make_project,
+    make_project_member,
+    make_task,
+    auth_headers,
 ):
     user = make_user()
     owner = make_user(email="ws-owner-scope2@example.com")
@@ -181,6 +188,13 @@ def test_dashboard_scoped_to_project_excludes_other_projects_and_direct_workspac
     add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
     project_a = make_project(workspace=workspace, name="Projeto A")
     project_b = make_project(workspace=workspace, name="Projeto B")
+    # 003-membros-projeto: sem acesso explícito ao projeto, `user` (Member
+    # comum) não veria as tarefas dele em nenhuma contagem — membership
+    # explícita nos dois é o que permite este teste continuar validando a
+    # mecânica de escopo (não a restrição de visibilidade em si, coberta em
+    # test_project_members.py).
+    make_project_member(project=project_a, user=user)
+    make_project_member(project=project_b, user=user)
 
     make_task(
         creator=owner, assignee=user, workspace=workspace, project=project_a, title="Da A", status=TaskStatus.PENDING
@@ -256,18 +270,30 @@ def test_dashboard_scoped_to_workspace_user_is_not_member_of_returns_zero(
 
 
 def test_dashboard_counts_project_task_via_workspace_membership_without_duplication(
-    client, make_user, make_workspace, add_workspace_member, make_project, make_task, auth_headers
+    client,
+    make_user,
+    make_workspace,
+    add_workspace_member,
+    make_project,
+    make_project_member,
+    make_task,
+    auth_headers,
 ):
     """T072/US4: uma tarefa vinculada a um projeto é contada pelo dashboard
     através da MESMA união por `workspace_id` já ativada na T065 — nenhuma
     lógica adicional específica de projeto é necessária, e a tarefa nunca é
     contada mais de uma vez (é uma única linha em `tasks`, `project_id` não
-    entra em nenhuma cláusula de contagem separada)."""
+    entra em nenhuma cláusula de contagem separada).
+
+    003-membros-projeto: `user` precisa ser membro explícito do projeto —
+    sem isso, a tarefa de projeto ficaria fora da visibilidade dele
+    (comportamento coberto em test_project_members.py)."""
     user = make_user()
     owner = make_user(email="ws-owner-project-dashboard@example.com")
     workspace = make_workspace(owner=owner, name="Workspace com projeto")
     add_workspace_member(workspace=workspace, user=user, role=WorkspaceRole.MEMBER)
     project = make_project(workspace=workspace)
+    make_project_member(project=project, user=user)
 
     make_task(creator=user, title="Pessoal", status=TaskStatus.PENDING)
     make_task(

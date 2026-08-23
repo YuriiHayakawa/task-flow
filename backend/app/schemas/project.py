@@ -20,11 +20,17 @@ class ProjectUpdate(BaseModel):
 
 
 class ProjectRead(BaseModel):
+    """`is_member` é contextual (depende de quem pergunta) — sempre
+    construído explicitamente pelo Service (`ProjectService.to_read`), nunca
+    via `from_attributes` direto do ORM (mesmo padrão de
+    `WorkspaceRead.my_role`, 003-membros-projeto)."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     workspace_id: uuid.UUID
     name: str
     description: str | None
+    is_member: bool
     created_at: datetime
     updated_at: datetime

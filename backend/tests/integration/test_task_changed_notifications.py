@@ -57,6 +57,62 @@ def test_reassign_workspace_task_to_non_member_rejected(
     assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
 
 
+def test_reassign_project_task_to_non_project_member_rejected(
+    client,
+    make_user,
+    make_workspace,
+    add_workspace_member,
+    make_project,
+    make_task,
+    auth_headers,
+):
+    """003-membros-projeto/FR-009: ser membro do WORKSPACE não basta para
+    ser reatribuído a uma tarefa de um projeto restrito."""
+    owner = make_user()
+    workspace_member = make_user(email="workspace-only-reassign@example.com")
+    workspace = make_workspace(owner=owner)
+    add_workspace_member(workspace=workspace, user=workspace_member, role=WorkspaceRole.MEMBER)
+    project = make_project(workspace=workspace, creator=owner)
+    task = make_task(creator=owner, workspace=workspace, project=project)
+
+    response = client.patch(
+        f"/api/v1/tasks/{task.id}",
+        json={"assignee_id": str(workspace_member.id)},
+        headers=auth_headers(owner),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "BUSINESS_RULE_VIOLATION"
+
+
+def test_reassign_project_task_to_project_member_succeeds(
+    client,
+    make_user,
+    make_workspace,
+    add_workspace_member,
+    make_project,
+    make_project_member,
+    make_task,
+    auth_headers,
+):
+    owner = make_user()
+    project_member = make_user(email="project-member-reassign@example.com")
+    workspace = make_workspace(owner=owner)
+    add_workspace_member(workspace=workspace, user=project_member, role=WorkspaceRole.MEMBER)
+    project = make_project(workspace=workspace, creator=owner)
+    make_project_member(project=project, user=project_member)
+    task = make_task(creator=owner, workspace=workspace, project=project)
+
+    response = client.patch(
+        f"/api/v1/tasks/{task.id}",
+        json={"assignee_id": str(project_member.id)},
+        headers=auth_headers(owner),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["assignee_id"] == str(project_member.id)
+
+
 def test_reassign_personal_task_to_another_user_still_rejected(
     client, make_user, make_task, auth_headers
 ):

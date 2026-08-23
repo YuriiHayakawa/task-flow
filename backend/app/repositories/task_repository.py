@@ -18,6 +18,40 @@ def active_task_filter() -> ColumnElement[bool]:
     return Task.status != TaskStatus.DONE
 
 
+def _visible_task_condition(
+    *,
+    creator_id: uuid.UUID,
+    workspace_ids: Sequence[uuid.UUID],
+    owner_workspace_ids: Sequence[uuid.UUID],
+    member_project_ids: Sequence[uuid.UUID],
+) -> ColumnElement[bool]:
+    """Visibilidade de tarefa (003-membros-projeto, data-model.md) —
+    reutilizada por `search` e `count_by_status`, nunca reimplementada em
+    cada uma:
+
+    - tarefa pessoal do próprio usuário (inalterado);
+    - tarefa de workspace SEM projeto vinculado: basta ser membro do
+      workspace (inalterado);
+    - tarefa de workspace COM projeto vinculado: exige também acesso ao
+      projeto — Owner do workspace do projeto (`owner_workspace_ids`) OU
+      membro explícito do projeto (`member_project_ids`, sempre também
+      restrito a `workspace_ids` — evita que um `ProjectMember` órfão de um
+      workspace do qual a pessoa não é mais membro conceda visibilidade,
+      spec.md "Edge Cases")."""
+    return or_(
+        and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
+        and_(Task.workspace_id.in_(workspace_ids), Task.project_id.is_(None))
+        if workspace_ids
+        else false(),
+        and_(Task.workspace_id.in_(owner_workspace_ids), Task.project_id.is_not(None))
+        if owner_workspace_ids
+        else false(),
+        and_(Task.workspace_id.in_(workspace_ids), Task.project_id.in_(member_project_ids))
+        if workspace_ids and member_project_ids
+        else false(),
+    )
+
+
 class TaskRepository:
     """Acesso a dados de `Task` — nenhuma regra de negócio aqui (Constitution III)."""
 
@@ -53,6 +87,21 @@ class TaskRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def list_active_by_assignee_in_project(
+        self, project_id: uuid.UUID, assignee_id: uuid.UUID
+    ) -> list[Task]:
+        """003-membros-projeto/FR-010 — mesmo padrão de
+        `list_active_by_assignee_in_workspace`, usado por
+        `ProjectMemberService.remove_member` para bloquear a remoção de um
+        membro responsável por tarefas ativas DENTRO DESSE PROJETO
+        especificamente."""
+        stmt = select(Task).where(
+            Task.project_id == project_id,
+            Task.assignee_id == assignee_id,
+            active_task_filter(),
+        )
+        return list(self.db.scalars(stmt))
+
     def count_by_project(self, project_id: uuid.UUID) -> int:
         """Usado apenas para o log estruturado de `ProjectService.delete`
         (refinamento #6, data-model.md) — nunca como pré-condição de exclusão:
@@ -67,6 +116,8 @@ class TaskRepository:
         creator_id: uuid.UUID,
         workspace_ids: Sequence[uuid.UUID],
         today: date,
+        owner_workspace_ids: Sequence[uuid.UUID] = (),
+        member_project_ids: Sequence[uuid.UUID] = (),
         scope_workspace_id: uuid.UUID | None = None,
         scope_project_id: uuid.UUID | None = None,
         personal_only: bool = False,
@@ -78,6 +129,10 @@ class TaskRepository:
         `today` já calculado na timezone da aplicação pelo chamador
         (research.md #9), nunca `CURRENT_DATE` do banco (que seria UTC).
 
+        `owner_workspace_ids`/`member_project_ids` (003-membros-projeto):
+        tarefas de projetos restritos aos quais o usuário não tem acesso
+        deixam de ser contadas — ver `_visible_task_condition`.
+
         `scope_workspace_id`/`scope_project_id`/`personal_only` (dashboard com
         escopo — não previstos nas Fases 4/US2 originais) apenas ESTREITAM
         `visible` com um `AND` adicional, mesmo padrão já documentado em
@@ -86,9 +141,11 @@ class TaskRepository:
         `visible` — nenhuma checagem de autorização separada é necessária
         aqui (a mutualexclusividade entre os três é responsabilidade do
         Service, não desta consulta)."""
-        visible = or_(
-            and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
-            Task.workspace_id.in_(workspace_ids) if workspace_ids else false(),
+        visible = _visible_task_condition(
+            creator_id=creator_id,
+            workspace_ids=workspace_ids,
+            owner_workspace_ids=owner_workspace_ids,
+            member_project_ids=member_project_ids,
         )
         conditions: list[ColumnElement[bool]] = [visible]
         if personal_only:
@@ -123,6 +180,8 @@ class TaskRepository:
         *,
         creator_id: uuid.UUID,
         workspace_ids: Sequence[uuid.UUID],
+        owner_workspace_ids: Sequence[uuid.UUID] = (),
+        member_project_ids: Sequence[uuid.UUID] = (),
         search: str | None,
         status: TaskStatus | None,
         priority: TaskPriority | None,
@@ -152,9 +211,11 @@ class TaskRepository:
         `LOW < MEDIUM < HIGH < URGENT` (`data-model.md`), decisão
         documentada aqui por não haver essa definição explícita em nenhum
         documento."""
-        visible = or_(
-            and_(Task.creator_id == creator_id, Task.workspace_id.is_(None)),
-            Task.workspace_id.in_(workspace_ids) if workspace_ids else false(),
+        visible = _visible_task_condition(
+            creator_id=creator_id,
+            workspace_ids=workspace_ids,
+            owner_workspace_ids=owner_workspace_ids,
+            member_project_ids=member_project_ids,
         )
 
         conditions = [visible]
