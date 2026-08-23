@@ -14,7 +14,7 @@ from app.enums.workspace_role import WorkspaceRole
 from app.repositories.task_repository import TaskRepository
 
 
-def _search(repo, user, workspace_ids=(), **kwargs):
+def _search(repo, user, workspace_ids=(), owner_workspace_ids=(), member_project_ids=(), **kwargs):
     defaults = dict(
         search=None,
         status=None,
@@ -28,7 +28,13 @@ def _search(repo, user, workspace_ids=(), **kwargs):
         page_size=20,
     )
     defaults.update(kwargs)
-    return repo.search(creator_id=user.id, workspace_ids=list(workspace_ids), **defaults)
+    return repo.search(
+        creator_id=user.id,
+        workspace_ids=list(workspace_ids),
+        owner_workspace_ids=list(owner_workspace_ids),
+        member_project_ids=list(member_project_ids),
+        **defaults,
+    )
 
 
 # --- busca por título ----------------------------------------------------------
@@ -105,7 +111,12 @@ def test_filter_by_workspace_and_project(
     repo = TaskRepository(db_session)
 
     items, total = _search(
-        repo, user, workspace_ids=[workspace.id], workspace_id=workspace.id, project_id=project.id
+        repo,
+        user,
+        workspace_ids=[workspace.id],
+        owner_workspace_ids=[workspace.id],  # user é o Owner (make_workspace(owner=user))
+        workspace_id=workspace.id,
+        project_id=project.id,
     )
 
     assert total == 1

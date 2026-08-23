@@ -27,6 +27,7 @@ from app.enums.workspace_role import WorkspaceRole
 from app.main import app
 from app.enums.recurrence_type import RecurrenceType
 from app.models.project import Project
+from app.models.project_member import ProjectMember
 from app.models.recurring_task import RecurringTask
 from app.models.recurring_task_weekday import RecurringTaskWeekday
 from app.models.task import Task
@@ -168,14 +169,39 @@ def add_workspace_member(db_session: Session):
 @pytest.fixture()
 def make_project(db_session: Session):
     def _make_project(
-        *, workspace: Workspace, name: str = "Test Project", description: str | None = None
+        *,
+        workspace: Workspace,
+        name: str = "Test Project",
+        description: str | None = None,
+        creator: User | None = None,
     ) -> Project:
         project = Project(workspace_id=workspace.id, name=name, description=description)
         db_session.add(project)
         db_session.flush()
+
+        # 003-membros-projeto (FR-003): quando um `creator` é informado,
+        # replica o mesmo comportamento de `ProjectService.create` (o
+        # criador já entra como primeiro `ProjectMember`) — opcional para
+        # não quebrar testes do MVP que criam projetos sem se importar com
+        # membership de projeto.
+        if creator is not None:
+            db_session.add(ProjectMember(project_id=project.id, user_id=creator.id))
+            db_session.flush()
+
         return project
 
     return _make_project
+
+
+@pytest.fixture()
+def make_project_member(db_session: Session):
+    def _make_project_member(*, project: Project, user: User) -> ProjectMember:
+        member = ProjectMember(project_id=project.id, user_id=user.id)
+        db_session.add(member)
+        db_session.flush()
+        return member
+
+    return _make_project_member
 
 
 @pytest.fixture()

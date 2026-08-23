@@ -7,9 +7,11 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.dependencies.auth import get_current_user
 from app.dependencies.db import get_db
 from app.enums.workspace_role import WorkspaceRole
+from app.enums.workspace_role import WorkspaceRole
 from app.models.recurring_task import RecurringTask
 from app.models.task import Task
 from app.models.user import User
+from app.repositories.project_member_repository import ProjectMemberRepository
 from app.repositories.recurring_task_repository import RecurringTaskRepository
 from app.repositories.task_member_repository import TaskMemberRepository
 from app.repositories.task_repository import TaskRepository
@@ -23,7 +25,10 @@ def require_task_visible(
 ) -> Task:
     """Visibilidade (contracts/_conventions.md, research.md #8): tarefa
     pessoal só é visível ao próprio criador; tarefa de workspace é visível a
-    qualquer membro do workspace, qualquer role. `404` — nunca `403` — para
+    qualquer membro do workspace, qualquer role — EXCETO quando a tarefa
+    pertence a um projeto restrito (003-membros-projeto/FR-007): nesse caso,
+    exige também a fórmula de acesso a projeto (data-model.md) — Owner do
+    workspace, ou membro explícito do projeto. `404` — nunca `403` — para
     quem não tem visibilidade nenhuma, nunca confirmando a existência da
     tarefa a quem não tem acesso.
 
@@ -45,6 +50,11 @@ def require_task_visible(
     role = WorkspaceMemberRepository(db).get_role(task.workspace_id, current_user.id)
     if role is None:
         raise NotFoundError("Tarefa não encontrada.")
+
+    if task.project_id is not None and role != WorkspaceRole.OWNER:
+        if not ProjectMemberRepository(db).is_member(task.project_id, current_user.id):
+            raise NotFoundError("Tarefa não encontrada.")
+
     return task
 
 

@@ -26,11 +26,22 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { usePersonalTasks } from "@/hooks/usePersonalTasks";
 import { cn } from "@/lib/utils";
 import type { Task, TaskCreate, TaskStatus } from "@/types/task";
+import {
+  DUE_CHIP_CLASS,
+  PRIORITY_BORDER_CLASS,
+  PRIORITY_CHIP_CLASS,
+  PRIORITY_LABEL,
+  STATUS_ACCENT_CLASS,
+  STATUS_COLUMN_STYLE,
+  STATUS_ICON,
+  STATUS_LABEL,
+  describeDueDate,
+} from "@/utils/taskStyle";
 
-/** Mesma linguagem visual do restante do produto: os ícones de status
- * reaproveitam exatamente os do Dashboard (`Circle`/`CircleDot`/
- * `CheckCircle2`), e a paleta reaproveita o mockup do board kanban da
- * tela de login (`BrandPanel`) — cada coluna é uma "esteira" com
+/** Mesma linguagem visual do restante do produto: ícones/rótulos/cores de
+ * status e prioridade vêm de `taskStyle.ts` — a mesma fonte usada em
+ * `ProjectDetailPage`/`TaskDetailPage`/Dashboard (Constitution V, evitar
+ * duplicar essa paleta em cada tela). Cada coluna é uma "esteira" com
  * identidade própria (tinta sutil de fundo, friso no topo, aro de
  * destaque ao soltar um cartão), não apenas uma caixa neutra. */
 const COLUMNS: {
@@ -42,88 +53,13 @@ const COLUMNS: {
   accentClass: string;
   countBadgeClass: string;
   dropRingClass: string;
-}[] = [
-  {
-    status: "PENDING",
-    label: "Pendente",
-    icon: Circle,
-    iconWrapperClass: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
-    columnTintClass: "bg-slate-50/60 dark:bg-slate-900/10",
-    accentClass: "bg-slate-400",
-    countBadgeClass: "bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-    dropRingClass: "ring-slate-400",
-  },
-  {
-    status: "IN_PROGRESS",
-    label: "Em andamento",
-    icon: CircleDot,
-    iconWrapperClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    columnTintClass: "bg-blue-50/50 dark:bg-blue-950/10",
-    accentClass: "bg-blue-500",
-    countBadgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-    dropRingClass: "ring-blue-400",
-  },
-  {
-    status: "DONE",
-    label: "Concluída",
-    icon: CheckCircle2,
-    iconWrapperClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    columnTintClass: "bg-emerald-50/50 dark:bg-emerald-950/10",
-    accentClass: "bg-emerald-500",
-    countBadgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
-    dropRingClass: "ring-emerald-400",
-  },
-];
-
-const PRIORITY_LABEL: Record<Task["priority"], string> = {
-  LOW: "Baixa",
-  MEDIUM: "Média",
-  HIGH: "Alta",
-  URGENT: "Urgente",
-};
-
-/** Chips sólidos (não apenas contorno) — mais vivos que o badge outline
- * anterior, mesma paleta usada nos toggles de prioridade do `TaskForm`. */
-const PRIORITY_CHIP_CLASS: Record<Task["priority"], string> = {
-  LOW: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  MEDIUM: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
-  HIGH: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300",
-  URGENT: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
-};
-
-const PRIORITY_BORDER_CLASS: Record<Task["priority"], string> = {
-  LOW: "border-l-slate-300",
-  MEDIUM: "border-l-blue-400",
-  HIGH: "border-l-amber-400",
-  URGENT: "border-l-red-500",
-};
-
-interface DueInfo {
-  label: string;
-  tone: "neutral" | "warning" | "danger";
-}
-
-const DUE_CHIP_CLASS: Record<DueInfo["tone"], string> = {
-  neutral: "bg-muted text-muted-foreground",
-  warning: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
-  danger: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
-};
-
-/** Rótulo relativo e amigável de prazo — indicador de contexto no cartão,
- * não a fonte oficial de "atrasada"/"vencendo hoje" (essa é o Dashboard,
- * calculado no backend com `APP_TIMEZONE`). */
-function describeDueDate(dueDate: string, isDone: boolean): DueInfo {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(`${dueDate}T00:00:00`);
-  const diffDays = Math.round((due.getTime() - today.getTime()) / 86_400_000);
-  const formatted = due.toLocaleDateString("pt-BR");
-
-  if (!isDone && diffDays < 0) return { label: `Atrasada · ${formatted}`, tone: "danger" };
-  if (diffDays === 0) return { label: "Vence hoje", tone: "warning" };
-  if (diffDays === 1) return { label: "Vence amanhã", tone: "neutral" };
-  return { label: formatted, tone: "neutral" };
-}
+}[] = (["PENDING", "IN_PROGRESS", "DONE"] as const).map((status) => ({
+  status,
+  label: STATUS_LABEL[status],
+  icon: STATUS_ICON[status],
+  accentClass: STATUS_ACCENT_CLASS[status],
+  ...STATUS_COLUMN_STYLE[status],
+}));
 
 interface TaskCardProps {
   task: Task;

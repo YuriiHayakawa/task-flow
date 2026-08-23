@@ -6,11 +6,13 @@ from app.core.exceptions import BusinessRuleViolationError, ForbiddenError
 from app.core.logging import get_logger
 from app.enums.notification_type import NotificationType
 from app.enums.task_status import TaskStatus
+from app.enums.workspace_role import WorkspaceRole
 from app.models.notification import Notification
 from app.models.task import Task
 from app.models.task_history_entry import TaskHistoryEntry
 from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.project_member_repository import ProjectMemberRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_history_repository import TaskHistoryRepository
 from app.repositories.task_member_repository import TaskMemberRepository
@@ -46,6 +48,7 @@ class TaskService:
         notification_repository: NotificationRepository,
         task_history_repository: TaskHistoryRepository,
         attachment_repository: AttachmentRepository,
+        project_member_repository: ProjectMemberRepository,
     ) -> None:
         self.task_repository = task_repository
         self.project_repository = project_repository
@@ -54,6 +57,7 @@ class TaskService:
         self.notification_repository = notification_repository
         self.task_history_repository = task_history_repository
         self.attachment_repository = attachment_repository
+        self.project_member_repository = project_member_repository
         self.db = task_repository.db
 
     def create(self, data: TaskCreate, creator_id: uuid.UUID) -> Task:
@@ -67,7 +71,7 @@ class TaskService:
             assignee_id = self._resolve_personal_assignee(data, creator_id)
         else:
             workspace_id, project_id = self._resolve_workspace_and_project(data, creator_id)
-            assignee_id = self._resolve_workspace_assignee(data, workspace_id, creator_id)
+            assignee_id = self._resolve_workspace_assignee(data, workspace_id, project_id, creator_id)
 
         task = Task(
             title=data.title,
@@ -128,6 +132,13 @@ class TaskService:
         if role is None:
             raise ForbiddenError("Você não é membro deste workspace.")
 
+        # Nota deliberada: criar uma tarefa DENTRO de um projeto restrito
+        # exige só membership de WORKSPACE (FR-008, inalterado) — FR-009 só
+        # restringe quem pode ser RESPONSÁVEL pela tarefa, não quem pode
+        # criá-la; essa restrição é aplicada em `_resolve_workspace_assignee`
+        # (inclusive no caminho padrão "sem assignee_id, o criador assume"),
+        # nunca aqui.
+
         return workspace_id, data.project_id
 
     def _require_workspace_member(self, workspace_id: uuid.UUID, user_id: uuid.UUID) -> None:
@@ -140,26 +151,67 @@ class TaskService:
                 "O responsável pela tarefa deve ser membro deste workspace."
             )
 
+    def _require_project_access(
+        self, workspace_id: uuid.UUID, project_id: uuid.UUID, user_id: uuid.UUID
+    ) -> None:
+        """FR-009 (003-membros-projeto): dentro de um projeto restrito, só
+        quem tem acesso a esse projeto pode ser responsável por uma tarefa
+        dele — mesma fórmula de acesso da visibilidade (data-model.md):
+        Owner do workspace, ou membro explícito do projeto. Aplicada tanto
+        a um `assignee_id` explícito quanto ao caminho padrão em que o
+        próprio criador assume (`_resolve_workspace_assignee`)."""
+        role = self.workspace_member_repository.get_role(workspace_id, user_id)
+        if role == WorkspaceRole.OWNER:
+            return
+        if not self.project_member_repository.is_member(project_id, user_id):
+            raise BusinessRuleViolationError(
+                "O responsável pela tarefa deve ser membro deste projeto."
+            )
+
     def _resolve_workspace_assignee(
-        self, data: TaskCreate, workspace_id: uuid.UUID, creator_id: uuid.UUID
+        self,
+        data: TaskCreate,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID | None,
+        creator_id: uuid.UUID,
     ) -> uuid.UUID:
-        """FR-021: qualquer membro do workspace pode ser responsável. Sem
-        `assignee_id`, o próprio criador assume — já confirmado membro por
-        `_resolve_workspace_and_project`, sem precisar reconsultar."""
+        """FR-021: qualquer membro do workspace pode ser responsável — MAS,
+        quando a tarefa pertence a um projeto restrito (003-membros-
+        projeto/FR-009), o responsável também precisa ter acesso a esse
+        projeto (`_require_project_access`). Sem `assignee_id`, o próprio
+        criador assume — já confirmado membro do workspace por
+        `_resolve_workspace_and_project`, mas AINDA precisa ser checado
+        contra o projeto aqui: criar sem informar responsável não é uma
+        forma de contornar FR-009."""
         if data.assignee_id is None or data.assignee_id == creator_id:
+            if project_id is not None:
+                self._require_project_access(workspace_id, project_id, creator_id)
             return creator_id
 
         self._require_workspace_member(workspace_id, data.assignee_id)
+        if project_id is not None:
+            self._require_project_access(workspace_id, project_id, data.assignee_id)
         return data.assignee_id
 
     def search(self, user_id: uuid.UUID, params: TaskSearchParams) -> tuple[list[Task], int]:
         """FR-055 a FR-059 (US8): endpoint central de listagem — tarefas
         pessoais do usuário + tarefas de todos os workspaces dos quais
-        participa (mesma união já usada no dashboard desde a Fase 5/T065)."""
+        participa (mesma união já usada no dashboard desde a Fase 5/T065).
+
+        003-membros-projeto: `owner_workspace_ids`/`member_project_ids`
+        (research.md #2) resolvem a visibilidade extra de tarefas de
+        projetos restritos — calculados aqui, nunca dentro da query
+        (Constitution IV)."""
         workspace_ids = self.workspace_member_repository.list_workspace_ids_for_user(user_id)
+        owner_workspace_ids = self.workspace_member_repository.list_owned_workspace_ids_for_user(
+            user_id
+        )
+        member_project_ids = self.project_member_repository.list_project_ids_for_user(user_id)
         return self.task_repository.search(
             creator_id=user_id,
             workspace_ids=workspace_ids,
+            owner_workspace_ids=owner_workspace_ids,
+            member_project_ids=member_project_ids,
             search=params.search,
             status=params.status,
             priority=params.priority,
@@ -252,6 +304,8 @@ class TaskService:
                 changes["assignee_id"] = task.assignee_id
             else:
                 self._require_workspace_member(task.workspace_id, new_assignee_id)
+                if task.project_id is not None:
+                    self._require_project_access(task.workspace_id, task.project_id, new_assignee_id)
 
         if "status" in changes:
             new_status = changes["status"]

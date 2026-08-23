@@ -12,6 +12,7 @@ from app.models.task import Task
 from app.models.user import User
 from app.repositories.attachment_repository import AttachmentRepository
 from app.repositories.notification_repository import NotificationRepository
+from app.repositories.project_member_repository import ProjectMemberRepository
 from app.repositories.project_repository import ProjectRepository
 from app.repositories.task_history_repository import TaskHistoryRepository
 from app.repositories.task_member_repository import TaskMemberRepository
@@ -33,6 +34,7 @@ def get_task_service(db: Session = Depends(get_db)) -> TaskService:
         NotificationRepository(db),
         TaskHistoryRepository(db),
         AttachmentRepository(db),
+        ProjectMemberRepository(db),
     )
 
 
