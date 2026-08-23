@@ -64,6 +64,15 @@ export const PRIORITY_CHIP_CLASS: Record<TaskPriority, string> = {
   URGENT: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400",
 };
 
+/** Borda lateral por prioridade — usada nos cartões de tarefa de qualquer
+ * board kanban do app (`PersonalTasksPage`, `ProjectDetailPage`). */
+export const PRIORITY_BORDER_CLASS: Record<TaskPriority, string> = {
+  LOW: "border-l-slate-300",
+  MEDIUM: "border-l-blue-400",
+  HIGH: "border-l-amber-400",
+  URGENT: "border-l-red-500",
+};
+
 export interface DueInfo {
   label: string;
   tone: "neutral" | "warning" | "danger";
@@ -94,3 +103,36 @@ export function describeDueDate(dueDate: string, isDone: boolean): DueInfo {
 export function isTaskDone(task: Pick<Task, "status">): boolean {
   return task.status === "DONE";
 }
+
+export interface StatusColumnStyle {
+  iconWrapperClass: string;
+  columnTintClass: string;
+  countBadgeClass: string;
+  dropRingClass: string;
+}
+
+/** Estilo visual de cada coluna de um board kanban de tarefas (ícone,
+ * tinta de fundo, badge de contagem, aro ao soltar um cartão) — usado por
+ * qualquer tela que renderize tarefas como board de 3 colunas
+ * (`PersonalTasksPage`, `ProjectDetailPage`), evitando reconstruir essa
+ * paleta em cada uma. */
+export const STATUS_COLUMN_STYLE: Record<TaskStatus, StatusColumnStyle> = {
+  PENDING: {
+    iconWrapperClass: "bg-slate-500/10 text-slate-600 dark:text-slate-400",
+    columnTintClass: "bg-slate-50/60 dark:bg-slate-900/10",
+    countBadgeClass: "bg-slate-200/70 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dropRingClass: "ring-slate-400",
+  },
+  IN_PROGRESS: {
+    iconWrapperClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    columnTintClass: "bg-blue-50/50 dark:bg-blue-950/10",
+    countBadgeClass: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+    dropRingClass: "ring-blue-400",
+  },
+  DONE: {
+    iconWrapperClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    columnTintClass: "bg-emerald-50/50 dark:bg-emerald-950/10",
+    countBadgeClass: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300",
+    dropRingClass: "ring-emerald-400",
+  },
+};

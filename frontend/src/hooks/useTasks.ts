@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import * as taskService from "@/services/taskService";
-import type { Task, TaskCreate, TaskSearchParams } from "@/types/task";
+import type { Task, TaskCreate, TaskSearchParams, TaskUpdate } from "@/types/task";
 
 interface UseTasksResult {
   tasks: Task[];
   isLoading: boolean;
   error: string | null;
   createTask: (payload: TaskCreate) => Promise<Task>;
+  updateTask: (taskId: string, payload: TaskUpdate) => Promise<void>;
   refetch: () => Promise<void>;
 }
 
@@ -49,5 +50,13 @@ export function useTasks(params: TaskSearchParams): UseTasksResult {
     [fetchTasks],
   );
 
-  return { tasks, isLoading, error, createTask, refetch: fetchTasks };
+  const updateTask = useCallback(
+    async (taskId: string, payload: TaskUpdate) => {
+      await taskService.update(taskId, payload);
+      await fetchTasks();
+    },
+    [fetchTasks],
+  );
+
+  return { tasks, isLoading, error, createTask, updateTask, refetch: fetchTasks };
 }
