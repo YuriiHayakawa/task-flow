@@ -12,7 +12,6 @@ import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { AddMemberByEmailForm } from "@/components/forms/AddMemberByEmailForm";
-import { PageHeader } from "@/components/layout/PageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,16 +32,45 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { cn } from "@/lib/utils";
 import * as userService from "@/services/userService";
 import type { ApiError } from "@/types/apiError";
-import type { WorkspaceMember } from "@/types/workspace";
+import type { WorkspaceMember, WorkspaceRole } from "@/types/workspace";
+import { pickAccentColor } from "@/utils/accentColor";
 import { getApiErrorMessage } from "@/utils/apiErrorMessage";
 import { getInitials } from "@/utils/initials";
-import { ROLE_BADGE_CLASS, ROLE_ICON, ROLE_LABEL } from "@/utils/workspaceRole";
+import {
+  ROLE_BADGE_CLASS,
+  ROLE_BORDER_CLASS,
+  ROLE_HERO_CHIP_CLASS,
+  ROLE_ICON,
+  ROLE_LABEL,
+} from "@/utils/workspaceRole";
+
+interface RoleCountChipProps {
+  role: WorkspaceRole;
+  count: number;
+}
+
+function RoleCountChip({ role, count }: RoleCountChipProps) {
+  const Icon = ROLE_ICON[role];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tabular-nums",
+        ROLE_HERO_CHIP_CLASS[role],
+      )}
+    >
+      <Icon className="size-2.5" />
+      {count} {ROLE_LABEL[role]}
+      {count > 1 ? "s" : ""}
+    </span>
+  );
+}
 
 interface RemoveMemberDialogProps {
   member: WorkspaceMember;
@@ -76,11 +104,16 @@ function RemoveMemberDialog({ member, onConfirm }: RemoveMemberDialogProps) {
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Remover ${member.name}`}>
-          <Trash2 className="size-4 text-destructive" />
-        </Button>
-      </AlertDialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={`Remover ${member.name}`}>
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Remover do workspace</TooltipContent>
+      </Tooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Remover {member.name}?</AlertDialogTitle>
@@ -133,11 +166,16 @@ function TransferOwnershipDialog({ member, onConfirm }: TransferOwnershipDialogP
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Transferir titularidade para ${member.name}`}>
-          <ArrowLeftRight className="size-4 text-amber-600 dark:text-amber-400" />
-        </Button>
-      </AlertDialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={`Transferir titularidade para ${member.name}`}>
+              <ArrowLeftRight className="size-4 text-amber-600 dark:text-amber-400" />
+            </Button>
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Transferir titularidade</TooltipContent>
+      </Tooltip>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Transferir titularidade para {member.name}?</AlertDialogTitle>
@@ -156,6 +194,101 @@ function TransferOwnershipDialog({ member, onConfirm }: TransferOwnershipDialogP
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+interface MembersHeroProps {
+  workspaceId: string;
+  workspaceName: string;
+  total: number;
+  ownerCount: number;
+  adminCount: number;
+  memberCount: number;
+  canManage: boolean;
+  onAdd: () => void;
+}
+
+/** Mesma identidade escura dos outros heróis — o badge de ícone segue a
+ * mesma cor determinística do workspace-pai (`pickAccentColor`), e o
+ * resumo é a composição real por role (mesmos rótulos/cores de
+ * `WorkspacesHero`, reaproveitados de `workspaceRole.ts`). */
+function MembersHero({
+  workspaceId,
+  workspaceName,
+  total,
+  ownerCount,
+  adminCount,
+  memberCount,
+  canManage,
+  onAdd,
+}: MembersHeroProps) {
+  const accent = pickAccentColor(workspaceId);
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0b1220] via-[#0a0f1e] to-[#05070f] p-5 shadow-xl shadow-black/20 sm:p-6">
+      <div className="blob-drift-a pointer-events-none absolute -top-20 -left-14 size-56 rounded-full bg-blue-600/25 blur-[80px]" />
+      <div className="blob-drift-b pointer-events-none absolute -right-16 -bottom-20 size-64 rounded-full bg-violet-500/20 blur-[90px]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[size:32px_32px]" />
+      <Users
+        className="pointer-events-none absolute -right-8 -bottom-10 size-44 -rotate-12 text-blue-500/[0.06]"
+        strokeWidth={1}
+      />
+
+      <div className="relative flex flex-col gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative flex size-10 shrink-0 items-center justify-center">
+              <div className={cn("absolute inset-0 rounded-xl opacity-70 blur-md", accent.glowClass)} />
+              <div
+                className={cn(
+                  "relative flex size-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg",
+                  accent.gradientClass,
+                  accent.shadowClass,
+                )}
+              >
+                <Users className="size-5 text-white" strokeWidth={2.25} />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Membros</h1>
+              <p className="text-xs text-slate-400 sm:text-sm">
+                Quem participa de &quot;{workspaceName}&quot; e com qual role.
+              </p>
+            </div>
+          </div>
+          {canManage && (
+            <Button
+              onClick={onAdd}
+              className="h-10 w-fit gap-1.5 rounded-xl bg-white px-4 text-sm font-semibold text-[#05070f] shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-xl hover:shadow-blue-500/10"
+            >
+              <UserPlus className="size-4" />
+              Adicionar membro
+            </Button>
+          )}
+        </div>
+
+        {total > 0 && (
+          <div className="flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-blue-400/15">
+                <Users className="size-4 text-blue-300" />
+              </div>
+              <div className="leading-tight">
+                <p className="text-xl font-bold tabular-nums text-white">{total}</p>
+                <p className="text-[11px] font-medium text-slate-400">
+                  {total === 1 ? "membro" : "membros"}
+                </p>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              {ownerCount > 0 && <RoleCountChip role="OWNER" count={ownerCount} />}
+              {adminCount > 0 && <RoleCountChip role="ADMIN" count={adminCount} />}
+              {memberCount > 0 && <RoleCountChip role="MEMBER" count={memberCount} />}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -200,137 +333,150 @@ export function WorkspaceMembersPage() {
     await refetchWorkspace();
   }
 
+  const ownerCount = members.filter((member) => member.role === "OWNER").length;
+  const adminCount = members.filter((member) => member.role === "ADMIN").length;
+  const memberCount = members.filter((member) => member.role === "MEMBER").length;
+
   return (
-    <div className="flex flex-col gap-5">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(`/workspaces/${workspaceId}`)}
-        className="w-fit gap-1.5 text-muted-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        {workspace?.name ?? "Workspace"}
-      </Button>
+    // Provider próprio (não depende só do da `AuthenticatedLayout`) — a
+    // página funciona mesmo renderizada isolada (ex.: testes).
+    <TooltipProvider delayDuration={0}>
+      <div className="flex flex-col gap-5">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(`/workspaces/${workspaceId}`)}
+          className="w-fit gap-1.5 text-muted-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          {workspace?.name ?? "Workspace"}
+        </Button>
 
-      <PageHeader
-        icon={Users}
-        title="Membros"
-        description={workspace ? `Quem participa de "${workspace.name}" e com qual role.` : "Carregando..."}
-      />
+        <MembersHero
+          workspaceId={workspaceId}
+          workspaceName={workspace?.name ?? "..."}
+          total={members.length}
+          ownerCount={ownerCount}
+          adminCount={adminCount}
+          memberCount={memberCount}
+          canManage={canManageMembers}
+          onAdd={() => setAddOpen(true)}
+        />
 
-      {canManageMembers && (
-        <div className="flex justify-end">
-          <Button
-            onClick={() => setAddOpen(true)}
-            className="h-10 gap-1.5 rounded-lg bg-blue-600 px-5 text-sm text-white shadow-sm shadow-blue-600/20 hover:bg-blue-500"
-          >
-            <UserPlus className="size-4" />
-            Adicionar membro
-          </Button>
-        </div>
-      )}
+        {isLoading && (
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
+        )}
 
-      {isLoading && (
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-16 w-full rounded-xl" />
-          <Skeleton className="h-16 w-full rounded-xl" />
-        </div>
-      )}
+        {!isLoading && error && <p className="text-sm text-destructive">{error}</p>}
 
-      {!isLoading && error && <p className="text-sm text-destructive">{error}</p>}
+        {!isLoading && !error && (
+          <div className="flex flex-col gap-2">
+            {members.map((member) => {
+              const RoleIcon = ROLE_ICON[member.role];
+              const isSelf = member.user_id === currentUser?.id;
+              const canChangeRole = isOwner && member.role !== "OWNER";
+              const canRemove =
+                member.role === "MEMBER" ? canManageMembers : member.role === "ADMIN" ? isOwner : false;
+              const canTransferTo = isOwner && member.role !== "OWNER";
 
-      {!isLoading && !error && (
-        <div className="flex flex-col gap-2">
-          {members.map((member) => {
-            const RoleIcon = ROLE_ICON[member.role];
-            const isSelf = member.user_id === currentUser?.id;
-            const canChangeRole = isOwner && member.role !== "OWNER";
-            const canRemove =
-              member.role === "MEMBER" ? canManageMembers : member.role === "ADMIN" ? isOwner : false;
-            const canTransferTo = isOwner && member.role !== "OWNER";
-
-            return (
-              <div
-                key={member.user_id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3"
-              >
-                <Avatar size="sm" className="rounded-lg">
-                  <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
-                    {getInitials(member.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {member.name}
-                    {isSelf && <span className="ml-1.5 text-xs text-muted-foreground">(você)</span>}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <span
+              return (
+                <div
+                  key={member.user_id}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
-                    ROLE_BADGE_CLASS[member.role],
+                    "flex flex-wrap items-center gap-3 rounded-xl border border-l-4 bg-card p-3 shadow-sm",
+                    ROLE_BORDER_CLASS[member.role],
                   )}
                 >
-                  <RoleIcon className="size-3" />
-                  {ROLE_LABEL[member.role]}
-                </span>
+                  <Avatar className="rounded-lg">
+                    <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-xs font-semibold text-white">
+                      {getInitials(member.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {member.name}
+                      {isSelf && <span className="ml-1.5 text-xs text-muted-foreground">(você)</span>}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                  </div>
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+                      ROLE_BADGE_CLASS[member.role],
+                    )}
+                  >
+                    <RoleIcon className="size-3" />
+                    {ROLE_LABEL[member.role]}
+                  </span>
 
-                <div className="flex items-center gap-1">
-                  {canChangeRole && (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={
-                        member.role === "MEMBER" ? `Promover ${member.name} a Admin` : `Rebaixar ${member.name} a Member`
-                      }
-                      onClick={() =>
-                        void updateMemberRole(member.user_id, member.role === "MEMBER" ? "ADMIN" : "MEMBER")
-                      }
-                    >
-                      {member.role === "MEMBER" ? (
-                        <ShieldCheck className="size-4 text-blue-600 dark:text-blue-400" />
-                      ) : (
-                        <ShieldMinus className="size-4 text-muted-foreground" />
-                      )}
-                    </Button>
-                  )}
-                  {canTransferTo && (
-                    <TransferOwnershipDialog
-                      member={member}
-                      onConfirm={() => handleTransferOwnership(member.user_id)}
-                    />
-                  )}
-                  {canRemove && (
-                    <RemoveMemberDialog member={member} onConfirm={() => removeMember(member.user_id)} />
-                  )}
+                  <div className="flex items-center gap-1">
+                    {canChangeRole && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={
+                              member.role === "MEMBER"
+                                ? `Promover ${member.name} a Admin`
+                                : `Rebaixar ${member.name} a Member`
+                            }
+                            onClick={() =>
+                              void updateMemberRole(member.user_id, member.role === "MEMBER" ? "ADMIN" : "MEMBER")
+                            }
+                          >
+                            {member.role === "MEMBER" ? (
+                              <ShieldCheck className="size-4 text-blue-600 dark:text-blue-400" />
+                            ) : (
+                              <ShieldMinus className="size-4 text-muted-foreground" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {member.role === "MEMBER" ? "Promover a Admin" : "Rebaixar a Member"}
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {canTransferTo && (
+                      <TransferOwnershipDialog
+                        member={member}
+                        onConfirm={() => handleTransferOwnership(member.user_id)}
+                      />
+                    )}
+                    {canRemove && (
+                      <RemoveMemberDialog member={member} onConfirm={() => removeMember(member.user_id)} />
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <Sheet open={addOpen} onOpenChange={setAddOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
-                <UserPlus className="size-4 text-white" />
-              </div>
-              <SheetTitle>Adicionar membro</SheetTitle>
-            </div>
-          </SheetHeader>
-          <div className="px-4 pb-4">
-            <AddMemberByEmailForm
-              onAdd={handleAddMember}
-              onCancel={() => setAddOpen(false)}
-              helperText="A pessoa entra como Member — promover a Admin é uma ação separada."
-            />
+              );
+            })}
           </div>
-        </SheetContent>
-      </Sheet>
-    </div>
+        )}
+
+        <Sheet open={addOpen} onOpenChange={setAddOpen}>
+          <SheetContent>
+            <SheetHeader>
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 shadow-md shadow-blue-900/20">
+                  <UserPlus className="size-4 text-white" />
+                </div>
+                <SheetTitle>Adicionar membro</SheetTitle>
+              </div>
+            </SheetHeader>
+            <div className="px-4 pb-4">
+              <AddMemberByEmailForm
+                onAdd={handleAddMember}
+                onCancel={() => setAddOpen(false)}
+                helperText="A pessoa entra como Member — promover a Admin é uma ação separada."
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    </TooltipProvider>
   );
 }
