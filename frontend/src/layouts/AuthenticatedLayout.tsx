@@ -82,7 +82,10 @@ function SidebarCollapseButton() {
   );
 }
 
+/** "Perfil" vem primeiro no menu — padrão comum em outros produtos (conta
+ * do usuário no topo da navegação principal, não perdida no fim da lista). */
 const NAV_ITEMS_BEFORE_TASKS = [
+  { to: "/profile", label: "Perfil", icon: UserIcon },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/workspaces", label: "Workspaces", icon: Building2 },
 ] as const;
@@ -98,7 +101,6 @@ const TASKS_SUB_ITEMS = [
 
 const NAV_ITEMS_AFTER_TASKS = [
   { to: "/notifications", label: "Notificações", icon: Bell },
-  { to: "/profile", label: "Perfil", icon: UserIcon },
 ] as const;
 
 function getInitials(name: string): string {
