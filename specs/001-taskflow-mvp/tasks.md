@@ -1054,13 +1054,23 @@ quais não é membro.
 
 ## Phase 24: Frontend — User Story 7: Perfil do Usuário (Priority: P2)
 
-- [ ] T148 [P] [US7] Estender `frontend/src/services/authService.ts` (ou criar `userService.ts`) com
-  `getMe`/`updateMe` (depende de T120, T123)
-- [ ] T149 [P] [US7] Criar `frontend/src/hooks/useProfile.ts` (depende de T148)
-- [ ] T150 [US7] Criar `frontend/src/pages/ProfilePage.tsx` (visualizar/editar nome e e-mail,
-  exibir status da conta) (depende de T149)
-- [ ] T151 [P] [US7] Teste de componente do formulário de perfil em
-  `frontend/tests/ProfilePage.test.tsx` (depende de T150)
+- [x] T148 [P] [US7] Estender `frontend/src/services/authService.ts` (ou criar `userService.ts`) com
+  `getMe`/`updateMe` (depende de T120, T123) — `userService.ts` já existia (`lookupByEmail`);
+  estendido em vez de criar um novo arquivo
+- [x] T149 [P] [US7] Criar `frontend/src/hooks/useProfile.ts` (depende de T148) — não faz fetch
+  próprio: reaproveita o `user` já carregado por `AuthContext` (evita um `GET /users/me`
+  redundante) e ganhou um `updateUser` novo em `AuthContext` para sincronizar sidebar/avatar após
+  salvar, sem exigir recarregar a página
+- [x] T150 [US7] Criar `frontend/src/pages/ProfilePage.tsx` (visualizar/editar nome e e-mail,
+  exibir status da conta) (depende de T149) — liga a rota `/profile` (`ComingSoon` → `ProfilePage`,
+  placeholder e link de sidebar já existiam desde as Fases 18+)
+- [x] T151 [P] [US7] Teste de componente do formulário de perfil em
+  `frontend/tests/ProfilePage.test.tsx` (depende de T150) — 4 testes (exibição, sucesso, e-mail
+  duplicado rejeitado com a mensagem do backend, botão desabilitado sem alteração). Bug real
+  encontrado e corrigido: `useState(user?.name ?? "")` só captura o valor inicial — como `user`
+  chega de forma assíncrona (`AuthContext`), os campos ficavam vazios; corrigido sincronizando por
+  `useEffect` e cobrindo a janela de carregamento com skeleton. Suíte completa do frontend: 84/84
+  passed
 
 **Commit sugerido**: `feat(frontend): implementa perfil do usuário (US7)`
 

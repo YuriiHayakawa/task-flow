@@ -7,6 +7,7 @@ import { PublicLayout } from "@/layouts/PublicLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
+import { ProfilePage } from "@/pages/ProfilePage";
 import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { RecurringTasksPage } from "@/pages/RecurringTasksPage";
@@ -99,7 +100,7 @@ export function AppRoutes() {
         <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/tasks/:taskId/edit" element={<TaskFormPage />} />
         <Route path="/notifications" element={<ComingSoon title="Notificações" />} />
-        <Route path="/profile" element={<ComingSoon title="Perfil" />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route
           path="/admin"
           element={

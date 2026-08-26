@@ -26,6 +26,12 @@ interface AuthContextValue {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Sincroniza o usuário em memória após uma edição bem-sucedida de perfil
+   * (US7, `useProfile.updateProfile`) — sem isso, sidebar/avatar ficariam
+   * com nome/e-mail antigos até um recarregamento de página, já que
+   * `AuthContext` é a única fonte do `user` atual (não há refetch em cada
+   * tela que o exibe). */
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -72,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+  }, []);
+
   const value: AuthContextValue = {
     user,
     token,
@@ -80,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
     login,
     logout,
+    updateUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
