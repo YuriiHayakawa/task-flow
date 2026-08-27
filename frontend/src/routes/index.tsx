@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthenticatedLayout } from "@/layouts/AuthenticatedLayout";
 import { PublicLayout } from "@/layouts/PublicLayout";
+import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotificationsPage } from "@/pages/NotificationsPage";
@@ -18,16 +19,6 @@ import { TaskFormPage } from "@/pages/TaskFormPage";
 import { WorkspaceDetailPage } from "@/pages/WorkspaceDetailPage";
 import { WorkspaceMembersPage } from "@/pages/WorkspaceMembersPage";
 import { WorkspacesPage } from "@/pages/WorkspacesPage";
-
-/** Placeholder temporário — substituído página a página nas Fases 18+. */
-function ComingSoon({ title }: { title: string }) {
-  return (
-    <div>
-      <h1 className="text-lg font-semibold">{title}</h1>
-      <p className="text-muted-foreground text-sm">Esta tela chega nas próximas fases.</p>
-    </div>
-  );
-}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -106,7 +97,7 @@ export function AppRoutes() {
           path="/admin"
           element={
             <AdminRoute>
-              <ComingSoon title="Administração" />
+              <AdminUsersPage />
             </AdminRoute>
           }
         />
