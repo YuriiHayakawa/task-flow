@@ -6,6 +6,7 @@ import { AuthenticatedLayout } from "@/layouts/AuthenticatedLayout";
 import { PublicLayout } from "@/layouts/PublicLayout";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { LoginPage } from "@/pages/LoginPage";
+import { NotificationsPage } from "@/pages/NotificationsPage";
 import { PersonalTasksPage } from "@/pages/PersonalTasksPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { ProjectDetailPage } from "@/pages/ProjectDetailPage";
@@ -99,7 +100,7 @@ export function AppRoutes() {
         <Route path="/tasks/new" element={<TaskFormPage />} />
         <Route path="/tasks/:taskId" element={<TaskDetailPage />} />
         <Route path="/tasks/:taskId/edit" element={<TaskFormPage />} />
-        <Route path="/notifications" element={<ComingSoon title="Notificações" />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route
           path="/admin"

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 
+import { NotificationBadge } from "@/components/layout/NotificationBadge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Collapsible,
@@ -52,6 +53,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
 
 /** Substitui o `SidebarTrigger` padrão — mora ao lado do logo, no cabeçalho
  * da própria sidebar (não no cabeçalho do conteúdo, reservado para o título
@@ -113,6 +115,11 @@ function getInitials(name: string): string {
 export function AuthenticatedLayout() {
   const { user, isSystemAdmin, logout } = useAuth();
   const location = useLocation();
+  // Uma única instância para o app inteiro (não uma por página) — o badge
+  // da sidebar logo abaixo e a `NotificationsPage` (via `Outlet context`)
+  // compartilham exatamente este estado, então marcar como lida em
+  // qualquer um dos dois lugares atualiza o outro na hora.
+  const notifications = useNotifications();
 
   const isTasksSectionActive = TASKS_SUB_ITEMS.some(
     (item) => item.to === location.pathname,
@@ -225,6 +232,12 @@ export function AuthenticatedLayout() {
                               <span>{label}</span>
                             </Link>
                           </SidebarMenuButton>
+                          {/* Irmão do botão, não filho — `SidebarMenuBadge`
+                              se posiciona de forma absoluta em relação ao
+                              `SidebarMenuItem` (Constitution V). */}
+                          {to === "/notifications" && (
+                            <NotificationBadge count={notifications.unreadCount} />
+                          )}
                         </SidebarMenuItem>
                       );
                     })}
@@ -288,7 +301,11 @@ export function AuthenticatedLayout() {
               cabeçalho (`PageHeader`), então uma barra vazia aqui só
               criava espaço morto no topo. */}
           <main className="flex-1 overflow-auto p-6">
-            <Outlet />
+            {/* `NotificationsPage` lê isto via `useOutletContext` — mesma
+                instância de `useNotifications` que alimenta o badge da
+                sidebar acima, evitando um segundo fetch e mantendo os dois
+                sincronizados sem um Context dedicado. */}
+            <Outlet context={notifications} />
           </main>
         </SidebarInset>
       </SidebarProvider>
