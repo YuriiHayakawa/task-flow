@@ -1078,6 +1078,16 @@ quais não é membro.
 
 ## Phase 25: Frontend — User Story 8: Busca, Filtros e Ordenação de Tarefas (Priority: P2)
 
+> **⏸️ Decisão de produto (2026-08-27): implementação desta fase adiada/descontinuada por
+> enquanto.** Uma tela dedicada (`TasksListPage`) chegou a ser implementada e depois removida a
+> pedido do usuário — na prática, não fazia sentido como uma tela própria de busca isolada. O
+> **backend** desta User Story permanece implementado e testado normalmente (Fase 10, T089-T091 —
+> `GET /tasks` já aceita busca por título, filtros combináveis de status/prioridade/workspace/
+> projeto/responsável, e ordenação); nada foi revertido lá, e a especificação da US8 em `spec.md`
+> continua válida. **T152-T154 abaixo NÃO devem ser implementadas agora** — ficam registradas para
+> o caso de a ideia voltar a fazer sentido no futuro, possivelmente com uma abordagem de UI
+> diferente (ex.: busca/filtros embutidos em telas já existentes, em vez de uma tela isolada).
+
 - [ ] T152 [US8] Estender `frontend/src/services/taskService.ts` e `frontend/src/hooks/useTasks.ts`
   com parâmetros de busca/filtro/ordenação (depende de T139)
 - [ ] T153 [US8] Criar `frontend/src/pages/TasksListPage.tsx` (busca por título, filtros combináveis,
