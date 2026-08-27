@@ -23,12 +23,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -241,56 +235,68 @@ export function AuthenticatedLayout() {
                         </SidebarMenuItem>
                       );
                     })}
-                    {isSystemAdmin && (
-                      <>
-                        <SidebarSeparator className="my-2" />
-                        <SidebarMenuItem>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={location.pathname === "/admin"}
-                            tooltip="Administração"
-                            className="h-10 rounded-lg text-[0.925rem] [&_svg]:size-[1.125rem]"
-                          >
-                            <Link to="/admin">
-                              <ShieldCheck className="transition-transform duration-200 group-hover/menu-button:scale-110" />
-                              <span>Administração</span>
-                            </Link>
-                          </SidebarMenuButton>
-                        </SidebarMenuItem>
-                      </>
-                    )}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
             </SidebarContent>
             <SidebarFooter>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <SidebarMenuButton size="lg" className="rounded-lg">
-                        <Avatar size="sm" className="rounded-lg">
-                          <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
-                            {getInitials(user?.name ?? "?")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="grid flex-1 text-left leading-tight">
-                          <span className="truncate text-sm font-medium">
-                            {user?.name ?? "Usuário"}
-                          </span>
-                          <span className="truncate text-xs text-sidebar-foreground/60">
-                            {user?.email}
-                          </span>
-                        </div>
+                {/* "Usuários" (só System Admin) mora no rodapé, logo acima do
+                    cartão da própria conta — pedido explícito do usuário: é
+                    uma seção à parte da navegação principal, não mais um item
+                    igual aos outros lá em cima. */}
+                {isSystemAdmin && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={location.pathname === "/admin"}
+                        tooltip="Usuários"
+                        className="h-10 rounded-lg text-[0.925rem] [&_svg]:size-[1.125rem]"
+                      >
+                        <Link to="/admin">
+                          <ShieldCheck className="transition-transform duration-200 group-hover/menu-button:scale-110" />
+                          <span>Usuários</span>
+                        </Link>
                       </SidebarMenuButton>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent side="top" align="start" className="w-56">
-                      <DropdownMenuItem variant="destructive" onClick={logout}>
-                        <LogOut />
-                        Sair
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    </SidebarMenuItem>
+                    <SidebarSeparator className="my-1" />
+                  </>
+                )}
+                {/* Cartão do usuário — só informativo agora, sem menu
+                    escondido atrás de um clique (era a única forma de achar
+                    "Sair" antes; pedido explícito pra deixar isso mais
+                    visível). */}
+                <SidebarMenuItem>
+                  <div className="flex items-center gap-2 rounded-lg p-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0">
+                    <Avatar size="sm" className="shrink-0 rounded-lg">
+                      <AvatarFallback className="rounded-lg bg-gradient-to-br from-blue-400 to-blue-700 text-[11px] font-semibold text-white">
+                        {getInitials(user?.name ?? "?")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                      <span className="truncate text-sm font-medium">
+                        {user?.name ?? "Usuário"}
+                      </span>
+                      <span className="truncate text-xs text-sidebar-foreground/60">
+                        {user?.email}
+                      </span>
+                    </div>
+                  </div>
+                </SidebarMenuItem>
+                {/* Botão próprio, sempre visível — não mais um item de
+                    dropdown. Continua funcionando com a sidebar colapsada em
+                    ícones (vira só o ícone, com tooltip "Sair" no hover). */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    type="button"
+                    onClick={logout}
+                    tooltip="Sair"
+                    className="h-10 rounded-lg text-[0.925rem] text-destructive hover:bg-destructive/10 hover:text-destructive [&_svg]:size-[1.125rem]"
+                  >
+                    <LogOut className="transition-transform duration-200 group-hover/menu-button:scale-110" />
+                    <span>Sair</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarFooter>

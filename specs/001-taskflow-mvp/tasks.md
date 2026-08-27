@@ -1190,12 +1190,32 @@ quais não é membro.
 
 ## Phase 30: Frontend — User Story 13: Administração de Usuários da Plataforma (System Admin) (Priority: P3)
 
-- [ ] T167 [P] [US13] Criar `frontend/src/services/adminService.ts` (depende de T120, T123)
-- [ ] T168 [P] [US13] Criar `frontend/src/hooks/useAdminUsers.ts` (depende de T167)
-- [ ] T169 [US13] Criar `frontend/src/pages/AdminUsersPage.tsx` (listar usuários, ativar/desativar —
-  rota protegida exclusiva de `is_system_admin`) (depende de T168, T122)
-- [ ] T170 [P] [US13] Teste de rota protegida confirmando bloqueio de `AdminUsersPage` para usuários
-  que não são System Admin em `frontend/tests/AdminUsersPage.test.tsx` (depende de T169)
+- [x] T167 [P] [US13] Criar `frontend/src/services/adminService.ts` (depende de T120, T123) —
+  `listUsers`/`setUserStatus` sobre `GET/PATCH /admin/users*`
+- [x] T168 [P] [US13] Criar `frontend/src/hooks/useAdminUsers.ts` (depende de T167) — mesma técnica
+  de `useTasks` (params combinam filtro `is_active` + paginação, chave estável via
+  `JSON.stringify` evita refetch por objeto novo com mesmo conteúdo)
+- [x] T169 [US13] Criar `frontend/src/pages/AdminUsersPage.tsx` (listar usuários, ativar/desativar —
+  rota protegida exclusiva de `is_system_admin`) (depende de T168, T122) — mesmo padrão visual de
+  `WorkspaceMembersPage` (cartão por linha, borda colorida — verde/cinza por status em vez de role);
+  filtro Todas/Ativas/Desativadas; paginação (20/página); desativar exige confirmação (`AlertDialog`,
+  bloqueia login imediatamente — FR-004) e reativar não; salvaguarda de UX (não regra de negócio,
+  Constitution IV): a própria conta do admin logado não mostra a ação, evitando se trancar fora por
+  engano — backend permitiria, nada duplicado
+- [x] T170 [P] [US13] Teste de rota protegida confirmando bloqueio de `AdminUsersPage` para usuários
+  que não são System Admin em `frontend/tests/AdminUsersPage.test.tsx` (depende de T169) — 4 casos
+  (bloqueio de rota, listar+desativar com confirmação+reativar, própria conta sem ação, filtro por
+  status). Suíte completa do frontend: 93/93 passed (3x consecutivas, sem flakiness); `tsc -b` e
+  `vite build` sem erros
+
+**Ajustes pós-implementação (pedido explícito do usuário, mesma sessão)**: item de navegação
+renomeado de "Administração" para "Usuários" e movido do grupo principal da sidebar para o rodapé
+(logo acima do cartão da própria conta) — mesma tela e rota (`/admin`), só reposicionamento/rótulo;
+subtítulo do hero simplificado para "Ative ou desative contas da plataforma" (sem a referência a
+FR-044/workspaces, verbosa demais para um subtítulo). Aproveitado para tornar "Sair" sempre visível
+no rodapé da sidebar (era um item escondido dentro de um dropdown aberto ao clicar no cartão do
+usuário — pouco descoberto); não é escopo da US13, mas ajuste de UX geral da `AuthenticatedLayout`
+feito na mesma leva de mudanças.
 
 **Checkpoint**: todas as 13 User Stories completas em backend e frontend.
 

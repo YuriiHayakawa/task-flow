@@ -97,11 +97,11 @@ describe("guardas de rota", () => {
     renderAt("/admin");
 
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Administração" })).toBeInTheDocument(),
+      expect(screen.getByRole("heading", { name: "Usuários" })).toBeInTheDocument(),
     );
   });
 
-  it("exibe o link de Administração na sidebar apenas para system admin", async () => {
+  it("exibe o link de Usuários na sidebar apenas para system admin", async () => {
     setStoredToken("fake-token");
     httpClient.defaults.adapter = mockMeAdapter(makeUser({ is_system_admin: true }));
 
@@ -110,10 +110,10 @@ describe("guardas de rota", () => {
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
-    expect(screen.getByRole("link", { name: /Administração/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Usuários/ })).toBeInTheDocument();
   });
 
-  it("não exibe o link de Administração na sidebar para um usuário comum", async () => {
+  it("não exibe o link de Usuários na sidebar para um usuário comum", async () => {
     setStoredToken("fake-token");
     httpClient.defaults.adapter = mockMeAdapter(makeUser({ is_system_admin: false }));
 
@@ -122,7 +122,7 @@ describe("guardas de rota", () => {
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Ana$/ })).toBeInTheDocument(),
     );
-    expect(screen.queryByRole("link", { name: /Administração/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Usuários/ })).not.toBeInTheDocument();
   });
 
   it("token inválido/expirado limpa a sessão e redireciona para /login", async () => {
