@@ -1078,6 +1078,16 @@ quais não é membro.
 
 ## Phase 25: Frontend — User Story 8: Busca, Filtros e Ordenação de Tarefas (Priority: P2)
 
+> **⏸️ Decisão de produto (2026-08-27): implementação desta fase adiada/descontinuada por
+> enquanto.** Uma tela dedicada (`TasksListPage`) chegou a ser implementada e depois removida a
+> pedido do usuário — na prática, não fazia sentido como uma tela própria de busca isolada. O
+> **backend** desta User Story permanece implementado e testado normalmente (Fase 10, T089-T091 —
+> `GET /tasks` já aceita busca por título, filtros combináveis de status/prioridade/workspace/
+> projeto/responsável, e ordenação); nada foi revertido lá, e a especificação da US8 em `spec.md`
+> continua válida. **T152-T154 abaixo NÃO devem ser implementadas agora** — ficam registradas para
+> o caso de a ideia voltar a fazer sentido no futuro, possivelmente com uma abordagem de UI
+> diferente (ex.: busca/filtros embutidos em telas já existentes, em vez de uma tela isolada).
+
 - [ ] T152 [US8] Estender `frontend/src/services/taskService.ts` e `frontend/src/hooks/useTasks.ts`
   com parâmetros de busca/filtro/ordenação (depende de T139)
 - [ ] T153 [US8] Criar `frontend/src/pages/TasksListPage.tsx` (busca por título, filtros combináveis,
@@ -1121,10 +1131,25 @@ quais não é membro.
 
 ## Phase 28: Frontend — User Story 11: Notificações (Priority: P3)
 
-- [ ] T161 [P] [US11] Criar `frontend/src/services/notificationService.ts` (depende de T120, T123)
-- [ ] T162 [P] [US11] Criar `frontend/src/hooks/useNotifications.ts` (depende de T161)
-- [ ] T163 [US11] Criar `frontend/src/pages/NotificationsPage.tsx` e indicador de não lidas em
-  `frontend/src/components/layout/NotificationBadge.tsx` (depende de T162)
+- [x] T161 [P] [US11] Criar `frontend/src/services/notificationService.ts` (depende de T120, T123)
+  — `list`/`markAsRead`/`markAllAsRead` sobre `GET/PATCH /notifications*`
+- [x] T162 [P] [US11] Criar `frontend/src/hooks/useNotifications.ts` (depende de T161) — expõe
+  `notifications`/`unreadCount`/ações; instanciado **uma única vez** em `AuthenticatedLayout` (não
+  por página) e compartilhado com as rotas filhas via `Outlet context` do React Router — o badge da
+  sidebar e a `NotificationsPage` precisam do mesmo estado, senão marcar como lida na página não
+  atualizaria o contador da sidebar sem uma navegação forçando remount
+- [x] T163 [US11] Criar `frontend/src/pages/NotificationsPage.tsx` e indicador de não lidas em
+  `frontend/src/components/layout/NotificationBadge.tsx` (depende de T162) — hero com contagem de
+  não lidas + "Marcar todas como lidas" (estado "Tudo em dia" quando zerado); corpo reformulado (a
+  pedido do usuário) como um **board de 3 colunas por tipo de evento** (Prazos/Comentários/
+  Alterações — DUE_SOON/NEW_COMMENT/TASK_CHANGED), reaproveitando a mesma identidade visual do
+  board kanban de "Minhas tarefas" em vez de uma lista única; clicar numa notificação não lida marca
+  como lida e navega até a tarefa (`task_id`); `NotificationBadge` reaproveita o `SidebarMenuBadge`
+  já existente no kit de sidebar do projeto (posicionamento/ocultação em modo ícone de graça,
+  Constitution V) em vez de reconstruir esse comportamento. Teste em
+  `frontend/tests/NotificationsPage.test.tsx` (4 casos: contagem refletida no hero e no badge da
+  sidebar, marcar uma como lida, marcar todas como lidas, estado vazio). Suíte completa do
+  frontend: 89/89 passed; `tsc -b` e `vite build` sem erros
 
 **Commit sugerido**: `feat(frontend): implementa notificações in-app (US11)`
 
