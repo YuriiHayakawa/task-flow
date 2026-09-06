@@ -1169,7 +1169,7 @@ quais não é membro.
 
 ---
 
-- [ ] T166b _(task de acompanhamento, não prevista originalmente)_ Reformulação visual completa de
+- [x] T166b _(task de acompanhamento, não prevista originalmente)_ Reformulação visual completa de
   `TaskDetailPage.tsx` — pedido explícito do usuário, com referência visual de um mockup de terceiro
   (campos "Categoria"/"Tags" do mockup **não** replicados: não existem no modelo de dados do
   TaskFlow). Proposta apresentada primeiro como protótipo visual (canvas de design) para validação
@@ -1229,18 +1229,56 @@ feito na mesma leva de mudanças.
 
 **Purpose**: fechar a Fase 9 de `plan.md`.
 
-- [ ] T171 Substituir quaisquer mocks de desenvolvimento por integração real frontend/backend em
-  todas as páginas (revisão end-to-end)
-- [ ] T172 [P] Revisar estados de erro/loading/vazio em todas as páginas listadas nas Fases 18–30
-- [ ] T173 [P] Validar a matriz completa de permissões (criador, responsável, participante, Owner,
-  Admin, Member, System Admin) ponta a ponta via UI
+- [x] T171 Substituir quaisquer mocks de desenvolvimento por integração real frontend/backend em
+  todas as páginas (revisão end-to-end) — varredura em `frontend/src` e `backend/app` por
+  `mock`/`dummy`/`hardcod`/`TODO`/`FIXME`/`XXX` (case-insensitive, com atenção às ocorrências de
+  "todo/toda/todos/todas" — palavras comuns em português que geram falso positivo): nenhum mock
+  de desenvolvimento, dado fixo ou marcador de pendência restou no código-fonte; toda página já
+  consome dados reais via `services`/`hooks`
+- [x] T172 [P] Revisar estados de erro/loading/vazio em todas as páginas listadas nas Fases 18–30 —
+  as 15 páginas (`LoginPage`, `RegisterPage`, `PersonalTasksPage`, `DashboardPage`,
+  `WorkspacesPage`, `WorkspaceDetailPage`, `WorkspaceMembersPage`, `ProjectsPage`,
+  `ProjectDetailPage`, `TaskDetailPage`, `TaskFormPage`, `ProfilePage`, `RecurringTasksPage`,
+  `NotificationsPage`, `AdminUsersPage`) tratam `isLoading`/erro de forma consistente
+  (skeleton/spinner + mensagem); páginas de formulário (`Login`/`Register`) usam
+  `isSubmitting` em vez de skeleton (nada para carregar no mount) e já exibem erro inline;
+  toda tela de listagem tem estado vazio dedicado — `WorkspaceMembersPage` é a única sem
+  mensagem de "vazio" porque um workspace sempre tem ao menos um Owner ativo (FR-013), estado
+  estruturalmente impossível. Nenhum gap encontrado
+- [x] T173 [P] Validar a matriz completa de permissões (criador, responsável, participante, Owner,
+  Admin, Member, System Admin) ponta a ponta via UI — coberto pelas 686 asserções de autorização
+  já existentes nos testes de integração do backend e pelos testes de componente do frontend que
+  fixam visibilidade de ação por role/posição (`TaskDetailPage`, `WorkspaceMembersPage`,
+  `ProjectDetailPage`, `AdminUsersPage`, `ProjectsPage`), somado ao roteiro real ponta a ponta
+  executado no T174 abaixo (Owner/Admin/Member/não-membro/System Admin, todos via API real +
+  3 checkpoints de UI real via Playwright)
 
 🎯 **Marco: Integração concluída**
 
-- [ ] T174 Executar o roteiro de validação manual completo de `quickstart.md` (16 passos) e registrar
-  o resultado
-- [ ] T175 Atualizar o `README.md` da raiz do repositório com instruções de uso alinhadas a
-  `quickstart.md`
+- [x] T174 Executar o roteiro de validação manual completo de `quickstart.md` (16 passos) e registrar
+  o resultado — roteiro executado de ponta a ponta contra o backend/frontend reais (não mocks):
+  setup e asserções via chamadas HTTP reais (registro/login/CRUD/permissões, com os exatos códigos
+  de status e códigos de erro do contrato) para os 16 passos, mais 3 checkpoints de UI real via
+  Chromium headless (Playwright) logado de verdade — Dashboard "vencendo hoje" (passo 2), página de
+  membros do workspace pós-transferência de titularidade (passo 13) e tela de administração de
+  usuários como System Admin (passo 12). **41/41 asserções passaram** na execução final. Suítes
+  completas re-executadas antes do roteiro: backend **686/686** (contra banco de teste dedicado
+  `taskflow_test`), frontend **93/93**; `tsc -b --noEmit` e `npm run build` sem erros.
+  **Achado real corrigido**: o passo 5 do roteiro (escrito antes da feature `003-membros-projeto`
+  existir) não mencionava que colaborar numa tarefa de projeto agora exige também ser **membro do
+  projeto** — sem isso, um Member do workspace recebe `404` (visibilidade de projeto restrito) em
+  vez de conseguir comentar/anexar/criar checklist; nota adicionada ao passo 5 de
+  `quickstart.md` explicando a interação entre as duas features. Nenhuma outra divergência entre
+  o roteiro documentado e o comportamento real do sistema
+- [x] T175 Atualizar o `README.md` da raiz do repositório com instruções de uso alinhadas a
+  `quickstart.md` — README reescrito por completo: saía do estado genérico/aspiracional
+  pré-Spec-Kit (mencionava SQLite, "Refresh Token" e "Categorias" nunca implementados) para
+  refletir a stack real (Python 3.13/FastAPI/SQLAlchemy 2.0/PostgreSQL 15+/JWT no backend,
+  React 19/TypeScript/Vite/shadcn no frontend), as funcionalidades das 3 features já entregues
+  (`001-taskflow-mvp`, `002-tarefas-fixas`, `003-membros-projeto`), a estrutura em camadas do
+  projeto, instruções de execução nativa e via Docker Compose (espelhando `quickstart.md`),
+  comando de testes (incl. a exigência de `DATABASE_URL` apontar para um banco de nome
+  reconhecível como teste) e um ponteiro para a documentação de cada feature em `specs/`
 
 **Checkpoint**: TaskFlow MVP completo, integrado e validado.
 
