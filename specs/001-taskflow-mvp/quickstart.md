@@ -90,7 +90,11 @@ P1/P2 da spec:
 4. **Promoção de role** (US3): promover o segundo usuário a Admin; confirmar que ele
    consegue criar um projeto (US4) e que um terceiro usuário (Member) não consegue.
 5. **Tarefa de workspace + participante** (US4/US5): criar uma tarefa dentro do projeto,
-   adicionar o Member como participante adicional.
+   adicionar o Member como participante adicional. **Nota (pós `003-membros-projeto`)**:
+   como o projeto agora tem sua própria lista de membros, esse Member também precisa ser
+   adicionado como **membro do projeto** (`POST /projects/{project_id}/members`) além de
+   virar membro do workspace e participante da tarefa — sem isso, os passos 6/7 abaixo
+   retornam `404` para ele (visibilidade de projeto restrito), não `403`.
 6. **Comentário/checklist/anexo** (US6/US9/US10): adicionar um de cada na tarefa criada.
 7. **Histórico** (US12): alterar o status da tarefa e confirmar uma nova entrada em
    `GET /tasks/{id}/history`.
